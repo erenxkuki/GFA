@@ -1,0 +1,27 @@
+# GFA Development Status
+
+## Phase 0 — Architecture and repository foundation: COMPLETE
+- Repository structure, pyproject, lint/test config, docs, contribution guidelines.
+
+## Phase 1 — GFA Core Runtime: COMPLETE
+- Config manager, structured logging, event bus, runtime lifecycle, health, diagnostics, session manager.
+
+## Phase 2 — Model Connector System: COMPLETE (core)
+- Provider abstraction, Ollama, OpenAI-compatible (OpenAI/LM Studio/custom), auth, connection test, model discovery, capability detection, timeouts/retries, errors, credential storage, model manager.
+
+## Phase 3 — GCL v1: COMPLETE (core)
+- Schemas, parser, validator, capability system, executor with cancellation/timeouts, tests.
+
+## Phase 4 — Universal Baseline: PENDING
+## Phase 5 — Agent Intelligence: PENDING
+## Phase 6 — Persistent Memory Engine: PENDING
+## Phase 7 — Adapter SDK: PENDING
+## Phase 8 — Official Game Adapters: PENDING
+## Phase 9 — Registry Backend: PENDING
+## Phase 10 — Community Website: PENDING
+## Phase 11 — Desktop Application: PENDING
+## Phase 12 — CLI and Developer Experience: IN PROGRESS
+## Phase 13 — AI Arena: PENDING
+## Phase 14 — Production Readiness: PENDING
+
+Current task: CLI polish and integration tests. Next: Phase 4 Universal Baseline.
