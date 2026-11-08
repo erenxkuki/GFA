@@ -24,7 +24,8 @@
 - Official reference game adapter under official-adapters/gfa-reference-game with manifest, structured observe/execute, compatibility matrix, tests. No commercial game available in dev environment; labeled as reference adapter.
 ## Phase 9 — Registry Backend: COMPLETE
 - FastAPI registry API with SQLite metadata, submit/search/get, releases, verification, compatibility checks, checksum endpoint, pagination. Tests via TestClient.
-## Phase 10 — Community Website: PENDING
+## Phase 10 — Community Website: COMPLETE
+- Static registry website (home, explore with search/filter/pagination, adapter details, publish form, docs, ownership verification notes) consuming the registry API.
 ## Phase 11 — Desktop Application: PENDING
 ## Phase 12 — CLI and Developer Experience: IN PROGRESS
 ## Phase 13 — AI Arena: PENDING
