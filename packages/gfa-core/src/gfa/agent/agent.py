@@ -135,6 +135,16 @@ class GameplayAgent:
                 else:
                     objects = []
 
+            # Spatial awareness
+            spatial_text = ""
+            try:
+                from gfa.spatial.depth import SpatialEstimator
+                se = SpatialEstimator(frame_width=frame.width, frame_height=frame.height)
+                if objects:
+                    spatial_text = se.spatial_summary([{"label": o.label, "x": o.x, "y": o.y, "w": o.w, "h": o.h} for o in objects])
+            except Exception:  # noqa: BLE001
+                spatial_text = ""
+
             retrieved = []
             if self.memory_manager is not None:
                 try:
@@ -152,7 +162,7 @@ class GameplayAgent:
                 objectives=[objective],
                 recent_actions=recent[-5:],
                 available_capabilities=sorted(caps.capabilities),
-                observation_summary=compact_summary,
+                observation_summary=compact_summary + (f" Spatial: {spatial_text}" if spatial_text else ""),
             )
 
             # Token optimization: decide whether to send image

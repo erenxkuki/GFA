@@ -52,3 +52,6 @@
 - Real-time action system (gfa.realtime): genre profiles (shooter, racing, fighting, platformer, story), motion tracking & prediction, aim assist, steering controller, high-frequency game loop with reflexes.
 - Synchronous input (gfa.universal.sync_input): simultaneous keyboard+mouse via batched SendInput, look_and_move for FPS, hold/release keys, tap sequences. Games requiring concurrent inputs (WASD + mouse look) now work correctly.
 - Per-game keybind profiles (gfa.input_profiles): configurable key mappings, mouse sensitivity/inversion/acceleration, presets (FPS WASD, FPS arrows, racing, platformer), save/load, CLI profile commands. Adapts to different game control schemes.
+- Combat combo system (gfa.combat): predefined input sequences with precise timing, cooldowns, combo library (dodge, 3-hit, parry counter, dash attack, jump attack).
+- 3D spatial awareness (gfa.spatial): depth estimation from 2D cues (size, vertical position), threat detection, spatial summary.
+- Multi-view spatial reconstruction (gfa.spatial.multiview): look around to build spatial map from multiple angles, object position estimation, confidence scoring. Like a human looking around to build a mental map.

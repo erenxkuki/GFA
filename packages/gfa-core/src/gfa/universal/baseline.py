@@ -11,6 +11,9 @@ from gfa.universal.capture import CapturedFrame, capture_window, frame_diff_rati
 from gfa.universal.input import InputController
 from gfa.universal.sync_input import SyncInputController
 from gfa.input_profiles.keybinds import KeybindProfile, fps_wasd
+from gfa.combat.combos import ComboLibrary, create_default_library
+from gfa.spatial.depth import SpatialEstimator
+from gfa.spatial.multiview.capture import MultiViewCapture
 from gfa.universal.windows import WindowInfo, find_windows, focus_window, is_window_valid
 
 
@@ -30,6 +33,8 @@ class UniversalBaseline:
         self.input = InputController()
         self.sync_input = SyncInputController()
         self.keybinds = self.config.keybind_profile or fps_wasd()
+        self.combos = create_default_library()
+        self.spatial = SpatialEstimator()
         self._hwnd: int | None = self.config.hwnd
         self._last_frame: CapturedFrame | None = None
         self._last_raw: bytes | None = None
@@ -118,6 +123,23 @@ class UniversalBaseline:
         self.sync_input.release_keys(keys)
         return {"keys": keys}
 
+    def execute_combo(self, name: str) -> dict[str, Any]:
+        combo = self.combos.get(name)
+        if combo is None:
+            raise ValueError(f"unknown combo: {name}")
+        ok = combo.execute(self.sync_input)
+        return {"combo": name, "executed": ok}
+
+    def spatial_summary(self, objects: list[dict[str, Any]]) -> str:
+        return self.spatial.spatial_summary(objects)
+
+    def look_around(self, angles: list[float] | None = None) -> dict[str, Any]:
+        """Capture from multiple angles and build a spatial map."""
+        mvc = MultiViewCapture(self, angles=angles)
+        smap = mvc.capture_all()
+        return {"views": len(smap.views), "objects": smap.estimated_positions,
+                "confidence": smap.confidence, "summary": smap.summary}
+
     def click(self, button: str = "left", x: int | None = None, y: int | None = None, count: int = 1) -> dict[str, Any]:
         self.input.click(button=button, x=x, y=y, count=count)
         return {"button": button, "x": x, "y": y, "count": count}
@@ -167,6 +189,10 @@ class UniversalBaseline:
             return self.hold_keys(cmd.params.get("keys", []))
         async def release_keys_handler(cmd: Command):
             return self.release_keys(cmd.params.get("keys", []))
+        async def combo_handler(cmd: Command):
+            return self.execute_combo(cmd.params.get("name", ""))
+        async def look_around_handler(cmd: Command):
+            return self.look_around(cmd.params.get("angles"))
         async def click_handler(cmd: Command):
             return self.click(cmd.params.get("button", "left"), cmd.params.get("x"), cmd.params.get("y"), cmd.params.get("count", 1))
         async def scroll_handler(cmd: Command):
@@ -188,6 +214,8 @@ class UniversalBaseline:
         executor.register_handler("look_and_move", look_and_move_handler)
         executor.register_handler("hold_keys", hold_keys_handler)
         executor.register_handler("release_keys", release_keys_handler)
+        executor.register_handler("combo", combo_handler)
+        executor.register_handler("look_around", look_around_handler)
         executor.register_handler("click", click_handler)
         executor.register_handler("scroll", scroll_handler)
         executor.register_handler("key", key_handler)

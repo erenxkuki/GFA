@@ -57,6 +57,9 @@ class CommandRegistry:
         add(type="look_and_move", category="movement",
             optional=["look_dx", "look_dy", "keys"],
             field_types={"look_dx": int, "look_dy": int, "keys": list})
+        add(type="look_around", category="observation",
+            optional=["angles"],
+            field_types={"angles": list})
         add(type="hold_keys", category="keyboard", required=["keys"],
             field_types={"keys": list})
         add(type="release_keys", category="keyboard", required=["keys"],
@@ -97,6 +100,8 @@ class CommandRegistry:
             optional=["params"], field_types={"capability": str, "params": dict})
         # Generic action (adapter-defined) - kept for compatibility
         add(type="action", category="game_specific", required=["name"],
+            optional=["params"], field_types={"name": str, "params": dict})
+        add(type="combo", category="game_specific", required=["name"],
             optional=["params"], field_types={"name": str, "params": dict})
 
 

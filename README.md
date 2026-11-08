@@ -143,6 +143,9 @@ gfa/
 - **Reflex layer** — instant reactions bypass model reasoning entirely
 - **Synchronous input** — keyboard + mouse sent simultaneously (WASD + mouse look in one SendInput batch)
 - **Per-game keybind profiles** — configurable key mappings, mouse sensitivity/inversion, presets for FPS/racing/platformer, save/load, CLI commands
+- **Combat combos** — predefined input sequences (dodge, 3-hit, parry counter, dash attack) with precise timing and cooldowns
+- **3D spatial awareness** — depth estimation from 2D cues, threat detection, nearest object finding
+- **Multi-view reconstruction** — look around to build a spatial map from multiple angles (like human mental mapping)
 
 ### Frame Generation (DLSS-style for AI)
 - **Perception frame generation** — like DLSS/FSR frame gen: captures at reduced rate, interpolates intermediate perception states using motion prediction + frame diff
