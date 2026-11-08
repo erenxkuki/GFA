@@ -24,18 +24,28 @@ class ReasoningCoordinator:
         self.model = model_provider
         self.fallback_policy = fallback_policy  # callable(world_state) -> list[dict]
 
-    async def decide(self, world_state, available_capabilities: list[str] | None = None) -> tuple[list[dict[str, Any]], str]:
+    async def decide(self, world_state, available_capabilities: list[str] | None = None,
+                     image_base64: str | None = None) -> tuple[list[dict[str, Any]], str]:
         prompt = world_state.to_prompt_text() if hasattr(world_state, "to_prompt_text") else str(world_state)
         if available_capabilities:
             prompt += "\nAvailable capabilities: " + ", ".join(available_capabilities)
         prompt += "\nReturn JSON only."
+
+        # Build message content (text + optional image)
+        if image_base64:
+            content = [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}},
+            ]
+        else:
+            content = prompt
 
         # Try model first
         if self.model is not None:
             try:
                 req = ChatRequest(messages=[
                     ChatMessage(role="system", content=SYSTEM_PROMPT),
-                    ChatMessage(role="user", content=prompt),
+                    ChatMessage(role="user", content=content),
                 ], response_format={"type": "json_object"}, max_tokens=512)
                 resp = await self.model.chat(req)
                 cmds, reasoning = self._parse(resp.text)

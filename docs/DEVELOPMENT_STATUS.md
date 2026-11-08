@@ -32,6 +32,9 @@
 ## Phase 13 — AI Arena: COMPLETE (basic)
 - Arena module with multi-agent matches, independent results, leaderboard, replay data via agent history.
 ## Phase 14 — Production Readiness: COMPLETE
+
+## Enhancements
+- CV/Vision pipeline (gfa.vision): enhanced perception, UI region detection, compact state summaries, token optimizer (compact/hybrid/full modes), frame diff, multimodal model messages. Reduces token usage vs full screenshots.
 - Full test suite passing (39 tests). Clean-wheel install verified. Release wheel built (dist/gfa-0.1.0-py3-none-any.whl). Security review notes documented.
 - Full test suite passing (39 tests). Security review notes: no hardcoded secrets, encrypted credential store, input validation, emergency stop, no arbitrary code execution. Release build attempted.
 

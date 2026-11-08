@@ -8,6 +8,13 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from gfa.agent.perception import PerceptionEngine, ColorBlobPerception
+try:
+    from gfa.vision.perception import VisionPerception, PerceptionResult
+    from gfa.vision.optimizer import TokenOptimizer
+except Exception:  # noqa: BLE001
+    VisionPerception = None  # type: ignore
+    PerceptionResult = None  # type: ignore
+    TokenOptimizer = None  # type: ignore
 from gfa.agent.planning import PlanningEngine
 from gfa.agent.reasoning import ReasoningCoordinator
 from gfa.agent.world_state import WorldState
@@ -47,6 +54,8 @@ class GameplayAgent:
         game_id: str | None = None,
         session_id: str | None = None,
         model_provenance: str | None = None,
+        vision_mode: str = "compact",  # compact | hybrid | full
+        use_vision: bool = True,
         objective_check=None,  # callable(world_state) -> bool
         max_steps: int = 20,
         step_delay: float = 0.5,
@@ -61,6 +70,8 @@ class GameplayAgent:
         self.game_id = game_id
         self.session_id = session_id
         self.model_provenance = model_provenance
+        self.vision_mode = vision_mode
+        self.use_vision = use_vision
         self.objective_check = objective_check
         self.max_steps = max_steps
         self.step_delay = step_delay
@@ -88,7 +99,26 @@ class GameplayAgent:
                 await asyncio.sleep(self.step_delay)
                 continue
 
-            objects = self.perception.analyze(frame)
+            # Perception
+            compact_summary = f"frame {frame.width}x{frame.height}"
+            vision_result = None
+            if self.use_vision and VisionPerception is not None and isinstance(self.perception, VisionPerception):
+                vision_result = self.perception.analyze(frame)
+                objects = vision_result.objects
+                compact_summary = vision_result.compact_summary
+            elif hasattr(self.perception, "analyze"):
+                r = self.perception.analyze(frame)
+                if isinstance(r, list):
+                    objects = r
+                elif PerceptionResult is not None and isinstance(r, PerceptionResult):
+                    vision_result = r
+                    objects = r.objects
+                    compact_summary = r.compact_summary
+                else:
+                    objects = []
+            else:
+                objects = []
+
             retrieved = []
             if self.memory_manager is not None:
                 try:
@@ -96,6 +126,7 @@ class GameplayAgent:
                     retrieved = [r.to_dict() if hasattr(r, "to_dict") else {"content": str(r)} for r in recs]
                 except Exception:  # noqa: BLE001
                     retrieved = []
+
             ws = WorldState(
                 game=game,
                 current_context="gameplay",
@@ -105,14 +136,19 @@ class GameplayAgent:
                 objectives=[objective],
                 recent_actions=recent[-5:],
                 available_capabilities=sorted(caps.capabilities),
-                observation_summary=f"frame {frame.width}x{frame.height}",
+                observation_summary=compact_summary,
             )
+
+            # Token optimization: decide whether to send image
+            image_b64 = None
+            if self.vision_mode in ("full", "hybrid"):
+                image_b64 = frame.to_base64()
 
             # objective check
             if self.objective_check is not None and self.objective_check(ws):
                 return AgentResult(True, step, "objective met", self.action_history, self.errors)
 
-            commands, reasoning_text = await self.reasoning.decide(ws, sorted(caps.capabilities))
+            commands, reasoning_text = await self.reasoning.decide(ws, sorted(caps.capabilities), image_base64=image_b64)
 
             if not commands:
                 self.errors.append("no commands from reasoning")
