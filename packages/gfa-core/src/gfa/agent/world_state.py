@@ -14,6 +14,7 @@ class WorldState:
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     current_context: str = "unknown"
     visible_objects: list[dict[str, Any]] = field(default_factory=list)
+    retrieved_memories: list[dict[str, Any]] = field(default_factory=list)
     objectives: list[str] = field(default_factory=list)
     recent_actions: list[dict[str, Any]] = field(default_factory=list)
     known_constraints: list[str] = field(default_factory=list)
@@ -28,6 +29,8 @@ class WorldState:
             lines.append("Objectives: " + "; ".join(self.objectives))
         if self.visible_objects:
             lines.append("Visible objects: " + str(self.visible_objects))
+        if self.retrieved_memories:
+            lines.append("Relevant memories: " + str(self.retrieved_memories))
         if self.recent_actions:
             lines.append("Recent actions: " + str(self.recent_actions[-5:]))
         if self.known_constraints:

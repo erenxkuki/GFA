@@ -17,6 +17,13 @@ from gfa.gcl.schema import CommandStatus
 from gfa.gcl.validator import GCLValidator, ValidationContext
 from gfa.universal.baseline import UniversalBaseline
 
+try:
+    from gfa.memory.manager import MemoryManager
+    from gfa.memory.extractor import ExperienceExtractor
+except Exception:  # noqa: BLE001
+    MemoryManager = None  # type: ignore
+    ExperienceExtractor = None  # type: ignore
+
 
 @dataclass
 class AgentResult:
@@ -36,6 +43,10 @@ class GameplayAgent:
         planning: PlanningEngine | None = None,
         executor: CommandExecutor | None = None,
         validator: GCLValidator | None = None,
+        memory_manager=None,
+        game_id: str | None = None,
+        session_id: str | None = None,
+        model_provenance: str | None = None,
         objective_check=None,  # callable(world_state) -> bool
         max_steps: int = 20,
         step_delay: float = 0.5,
@@ -46,6 +57,10 @@ class GameplayAgent:
         self.planning = planning or PlanningEngine()
         self.executor = executor or CommandExecutor()
         self.validator = validator or GCLValidator()
+        self.memory_manager = memory_manager
+        self.game_id = game_id
+        self.session_id = session_id
+        self.model_provenance = model_provenance
         self.objective_check = objective_check
         self.max_steps = max_steps
         self.step_delay = step_delay
@@ -74,11 +89,19 @@ class GameplayAgent:
                 continue
 
             objects = self.perception.analyze(frame)
+            retrieved = []
+            if self.memory_manager is not None:
+                try:
+                    recs = self.memory_manager.retrieve_for_context(self.game_id or game, objective, limit=5)
+                    retrieved = [r.to_dict() if hasattr(r, "to_dict") else {"content": str(r)} for r in recs]
+                except Exception:  # noqa: BLE001
+                    retrieved = []
             ws = WorldState(
                 game=game,
                 current_context="gameplay",
                 visible_objects=[{"label": o.label, "x": o.x, "y": o.y, "w": o.w, "h": o.h,
                                  "confidence": o.confidence} for o in objects],
+                retrieved_memories=retrieved,
                 objectives=[objective],
                 recent_actions=recent[-5:],
                 available_capabilities=sorted(caps.capabilities),
@@ -124,6 +147,21 @@ class GameplayAgent:
                      "results": [r.status.value for r in results]}
             recent.append(entry)
             self.action_history.append(entry)
+
+            # Memory extraction
+            if self.memory_manager is not None and ExperienceExtractor is not None:
+                try:
+                    extractor = ExperienceExtractor(game_id=self.game_id or game, session_id=self.session_id,
+                                                   model_provenance=self.model_provenance)
+                    success = all(r.status.value == "succeeded" for r in results) if results else False
+                    exps = extractor.extract({
+                        "action": commands, "result": {"ok": success}, "success": success,
+                        "objective": objective, "context": reasoning_text,
+                    })
+                    for m in exps:
+                        self.memory_manager.add(m)
+                except Exception:  # noqa: BLE001
+                    pass
 
             # check objective again after actions
             if self.objective_check is not None:

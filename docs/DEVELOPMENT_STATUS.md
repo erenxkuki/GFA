@@ -16,7 +16,8 @@
 - Window enumeration/selection, GDI screen capture to PNG, input control (keyboard/mouse/scroll), emergency stop, GCL handler wiring, integration test (observe+click on Tkinter sandbox).
 ## Phase 5 — Agent Intelligence: COMPLETE
 - Perception interface + color-blob implementation, world state, reasoning coordinator (model + fallback), planning engine, autonomous gameplay agent loop with replanning/recovery, objective detection. Integration test: agent reaches target in Tkinter sandbox using real observations and input.
-## Phase 6 — Persistent Memory Engine: PENDING
+## Phase 6 — Persistent Memory Engine: COMPLETE
+- Five memory categories, SQLite storage, CRUD, retrieval ranking, dedup, compression, version history, export/import, working memory, experience extraction. CLI memory commands. Agent integration (retrieve before reasoning, store after step). Tests.
 ## Phase 7 — Adapter SDK: PENDING
 ## Phase 8 — Official Game Adapters: PENDING
 ## Phase 9 — Registry Backend: PENDING

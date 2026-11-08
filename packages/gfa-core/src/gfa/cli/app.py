@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
 
 import typer
 from rich.console import Console
@@ -344,6 +345,91 @@ def session_status(session_id: str, status: str, json_output: bool = typer.Optio
         err.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(code=1) from None
     console.print(f"{session_id} -> {rec.status}")
+
+
+# ---- memory ----
+memory_app = typer.Typer(help="Memory commands")
+app.add_typer(memory_app, name="memory")
+
+
+def get_memory_manager():
+    from gfa.memory.manager import MemoryManager
+    return MemoryManager(get_config())
+
+
+@memory_app.command("list")
+def memory_list(game: Optional[str] = typer.Option(None, "--game"), category: Optional[str] = typer.Option(None, "--category"),
+               limit: int = typer.Option(50, "--limit"), json_output: bool = typer.Option(False, "--json")):
+    mm = get_memory_manager()
+    recs = mm.list(game_id=game, category=category, limit=limit)
+    rows = [r.to_dict() for r in recs]
+    if json_output:
+        typer.echo(json.dumps(rows, indent=2, default=str))
+    else:
+        if not rows:
+            console.print("No memories.")
+            return
+        t = Table("ID", "Game", "Category", "Type", "Conf", "Content")
+        for r in recs:
+            t.add_row(r.id, r.game_id or "-", r.category, r.memory_type, f"{r.confidence:.2f}", r.content[:60])
+        console.print(t)
+
+
+@memory_app.command("search")
+def memory_search(query: str, game: Optional[str] = typer.Option(None, "--game"),
+                 limit: int = typer.Option(10, "--limit"), json_output: bool = typer.Option(False, "--json")):
+    mm = get_memory_manager()
+    recs = mm.retrieve(query, game_id=game, limit=limit)
+    rows = [r.to_dict() for r in recs]
+    if json_output:
+        typer.echo(json.dumps(rows, indent=2, default=str))
+    else:
+        for r in recs:
+            console.print(f"[{r.id}] ({r.category}) {r.content}")
+
+
+@memory_app.command("stats")
+def memory_stats(json_output: bool = typer.Option(False, "--json")):
+    mm = get_memory_manager()
+    data = mm.stats()
+    if json_output:
+        typer.echo(json.dumps(data, indent=2))
+    else:
+        console.print_json(json.dumps(data, indent=2))
+
+
+@memory_app.command("export")
+def memory_export(path: str, game: Optional[str] = typer.Option(None, "--game")):
+    mm = get_memory_manager()
+    n = mm.export_json(Path(path), game_id=game)
+    console.print(f"Exported {n} memories to {path}")
+
+
+@memory_app.command("import")
+def memory_import(path: str, overwrite: bool = typer.Option(False, "--overwrite")):
+    mm = get_memory_manager()
+    n = mm.import_json(Path(path), overwrite=overwrite)
+    console.print(f"Imported {n} memories from {path}")
+
+
+@memory_app.command("compress")
+def memory_compress(game: Optional[str] = typer.Option(None, "--game"), json_output: bool = typer.Option(False, "--json")):
+    mm = get_memory_manager()
+    data = mm.compress(game_id=game)
+    if json_output:
+        typer.echo(json.dumps(data, indent=2))
+    else:
+        console.print(f"Compression: {data}")
+
+
+@memory_app.command("versions")
+def memory_versions(memory_id: str, json_output: bool = typer.Option(False, "--json")):
+    mm = get_memory_manager()
+    data = mm.versions(memory_id)
+    if json_output:
+        typer.echo(json.dumps(data, indent=2, default=str))
+    else:
+        console.print_json(json.dumps(data, indent=2, default=str))
 
 
 def main():
