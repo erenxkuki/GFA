@@ -26,7 +26,8 @@
 - FastAPI registry API with SQLite metadata, submit/search/get, releases, verification, compatibility checks, checksum endpoint, pagination. Tests via TestClient.
 ## Phase 10 — Community Website: COMPLETE
 - Static registry website (home, explore with search/filter/pagination, adapter details, publish form, docs, ownership verification notes) consuming the registry API.
-## Phase 11 — Desktop Application: PENDING
+## Phase 11 — Desktop Application: COMPLETE (reference shell)
+- Tkinter desktop application connecting to core runtime, model manager, sessions, memory, settings. (Tauri migration planned.)
 ## Phase 12 — CLI and Developer Experience: IN PROGRESS
 ## Phase 13 — AI Arena: PENDING
 ## Phase 14 — Production Readiness: PENDING
