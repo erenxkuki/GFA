@@ -452,7 +452,7 @@ def adapter_validate(path: str, json_output: bool = typer.Option(False, "--json"
             for e in errors:
                 console.print(f"  - {e}")
     if not ok:
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
 
 @adapter_app.command("test")
@@ -466,7 +466,7 @@ def adapter_test(path: str):
         console.print("[red]Invalid manifest[/red]")
         for e in errors:
             console.print(f"  - {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
     adir = manifest_path.parent
     host = AdapterHost(manifest, cwd=adir)
     init = host.start()
@@ -527,6 +527,112 @@ def adapter_init(name: str, directory: str = typer.Option(".", "--dir"), languag
             encoding="utf-8",
         )
     console.print(f"Scaffolded adapter in {d}")
+
+
+# ---- game ----
+game_app = typer.Typer(help="Game commands")
+app.add_typer(game_app, name="game")
+
+
+@game_app.command("list")
+def game_list(json_output: bool = typer.Option(False, "--json")):
+    from gfa.universal.windows import list_windows
+    wins = list_windows()
+    rows = [{"hwnd": w.hwnd, "title": w.title, "rect": w.rect, "pid": w.pid} for w in wins]
+    if json_output:
+        typer.echo(json.dumps(rows, indent=2))
+    else:
+        if not rows:
+            console.print("No windows found.")
+            return
+        t = Table("HWND", "Title", "PID")
+        for w in wins[:50]:
+            t.add_row(str(w.hwnd), w.title[:60], str(w.pid))
+        console.print(t)
+
+
+@game_app.command("detect")
+def game_detect(title: str, json_output: bool = typer.Option(False, "--json")):
+    from gfa.universal.windows import find_windows
+    wins = find_windows(title)
+    rows = [{"hwnd": w.hwnd, "title": w.title, "rect": w.rect} for w in wins]
+    if json_output:
+        typer.echo(json.dumps(rows, indent=2))
+    else:
+        if not rows:
+            console.print(f"No window matching '{title}'.")
+        for w in wins:
+            console.print(f"{w.hwnd}: {w.title} {w.rect}")
+
+
+# ---- registry ----
+registry_app = typer.Typer(help="Registry commands")
+app.add_typer(registry_app, name="registry")
+
+
+@registry_app.command("search")
+def registry_search(query: str, api: str = typer.Option("http://localhost:8000", "--api"), limit: int = typer.Option(20, "--limit"),
+                   json_output: bool = typer.Option(False, "--json")):
+    import httpx
+    try:
+        r = httpx.get(f"{api}/adapters", params={"q": query, "limit": limit}, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+    except Exception as exc:  # noqa: BLE001
+        err.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(code=1) from None
+    if json_output:
+        typer.echo(json.dumps(data, indent=2))
+    else:
+        for item in data.get("items", []):
+            console.print(f"{item['id']} - {item['name']} ({item.get('status')})")
+
+
+@registry_app.command("info")
+def registry_info(adapter_id: str, api: str = typer.Option("http://localhost:8000", "--api"), json_output: bool = typer.Option(False, "--json")):
+    import httpx
+    try:
+        r = httpx.get(f"{api}/adapters/{adapter_id}", timeout=10)
+        r.raise_for_status()
+        data = r.json()
+    except Exception as exc:  # noqa: BLE001
+        err.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(code=1) from None
+    if json_output:
+        typer.echo(json.dumps(data, indent=2, default=str))
+    else:
+        console.print_json(json.dumps(data, indent=2, default=str))
+
+
+@registry_app.command("health")
+def registry_health(api: str = typer.Option("http://localhost:8000", "--api")):
+    import httpx
+    try:
+        r = httpx.get(f"{api}/health", timeout=5)
+        r.raise_for_status()
+        console.print(r.json())
+    except Exception as exc:  # noqa: BLE001
+        err.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(code=1) from None
+
+
+@app.command()
+def logs(lines: int = typer.Option(50, "--lines", "-n"), json_output: bool = typer.Option(False, "--json")):
+    """Show recent log lines."""
+    from gfa.core.config import default_data_dir
+    log_dir = default_data_dir() / "logs"
+    files = sorted(log_dir.glob("*.log")) if log_dir.exists() else []
+    if not files:
+        console.print("No log files.")
+        return
+    f = files[-1]
+    content = f.read_text(encoding="utf-8", errors="replace").splitlines()
+    tail = content[-lines:]
+    if json_output:
+        typer.echo(json.dumps({"file": str(f), "lines": tail}, indent=2))
+    else:
+        for ln in tail:
+            console.print(ln)
 
 
 def main():
