@@ -134,6 +134,13 @@ gfa/
 
 ## 🎯 Features
 
+### Computer Vision & Token Optimization
+- **Compact state mode** — convert frames to short text summaries instead of full screenshots (≈10× fewer tokens)
+- **UI region detection** — health bars, minimap, dialogue, menus
+- **Object & change tracking** — color-blob detection with movement deltas
+- **Hybrid/full modes** — send small thumbnail or full image when needed
+- **Multimodal messages** — vision-capable models receive image + text
+
 ### Model Connections
 - **Ollama** (local)
 - **OpenAI** (cloud)
