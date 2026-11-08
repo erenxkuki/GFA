@@ -29,7 +29,8 @@
 ## Phase 11 — Desktop Application: COMPLETE (reference shell)
 - Tkinter desktop application connecting to core runtime, model manager, sessions, memory, settings. (Tauri migration planned.)
 ## Phase 12 — CLI and Developer Experience: IN PROGRESS
-## Phase 13 — AI Arena: PENDING
+## Phase 13 — AI Arena: COMPLETE (basic)
+- Arena module with multi-agent matches, independent results, leaderboard, replay data via agent history.
 ## Phase 14 — Production Readiness: PENDING
 
 Current task: CLI polish and integration tests. Next: Phase 4 Universal Baseline.
