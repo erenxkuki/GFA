@@ -9,6 +9,7 @@ from typing import Any
 from gfa.gcl.capabilities import CapabilitySet
 from gfa.universal.capture import CapturedFrame, capture_window, frame_diff_ratio
 from gfa.universal.input import InputController
+from gfa.universal.sync_input import SyncInputController
 from gfa.universal.windows import WindowInfo, find_windows, focus_window, is_window_valid
 
 
@@ -25,6 +26,7 @@ class UniversalBaseline:
     def __init__(self, config: BaselineConfig | None = None):
         self.config = config or BaselineConfig()
         self.input = InputController()
+        self.sync_input = SyncInputController()
         self._hwnd: int | None = self.config.hwnd
         self._last_frame: CapturedFrame | None = None
         self._last_raw: bytes | None = None
@@ -70,9 +72,11 @@ class UniversalBaseline:
 
     def emergency_stop(self) -> None:
         self.input.trigger_emergency_stop()
+        self.sync_input.trigger_emergency_stop()
 
     def reset_emergency(self) -> None:
         self.input.reset_emergency()
+        self.sync_input.reset_emergency()
 
     # High-level action helpers used by GCL handlers
     def move(self, direction: str, duration_ms: int = 500) -> dict[str, Any]:
@@ -85,6 +89,25 @@ class UniversalBaseline:
         time.sleep(min(duration_ms, 5000) / 1000.0)
         self.input.key_up(key)
         return {"direction": direction, "duration_ms": duration_ms}
+
+    def look(self, dx: int, dy: int) -> dict[str, Any]:
+        """Move mouse to look around (camera)."""
+        self.sync_input.move_mouse(dx, dy)
+        return {"look_dx": dx, "look_dy": dy}
+
+    def look_and_move(self, look_dx: int, look_dy: int, keys: list[str] | None = None) -> dict[str, Any]:
+        """Simultaneously look (mouse) and move (keyboard) — core FPS pattern."""
+        self.sync_input.look_and_move(look_dx, look_dy, keys or [])
+        return {"look_dx": look_dx, "look_dy": look_dy, "keys": keys or []}
+
+    def hold_keys(self, keys: list[str]) -> dict[str, Any]:
+        """Hold multiple keys simultaneously."""
+        self.sync_input.hold_keys(keys)
+        return {"keys": keys}
+
+    def release_keys(self, keys: list[str]) -> dict[str, Any]:
+        self.sync_input.release_keys(keys)
+        return {"keys": keys}
 
     def click(self, button: str = "left", x: int | None = None, y: int | None = None, count: int = 1) -> dict[str, Any]:
         self.input.click(button=button, x=x, y=y, count=count)
@@ -126,6 +149,15 @@ class UniversalBaseline:
             return {"width": frame.width, "height": frame.height, "captured": True}
         async def move_handler(cmd: Command):
             return self.move(cmd.params.get("direction", "forward"), cmd.params.get("duration_ms", 500))
+        async def look_handler(cmd: Command):
+            return self.look(cmd.params.get("dx", 0), cmd.params.get("dy", 0))
+        async def look_and_move_handler(cmd: Command):
+            return self.look_and_move(cmd.params.get("look_dx", 0), cmd.params.get("look_dy", 0),
+                                     cmd.params.get("keys"))
+        async def hold_keys_handler(cmd: Command):
+            return self.hold_keys(cmd.params.get("keys", []))
+        async def release_keys_handler(cmd: Command):
+            return self.release_keys(cmd.params.get("keys", []))
         async def click_handler(cmd: Command):
             return self.click(cmd.params.get("button", "left"), cmd.params.get("x"), cmd.params.get("y"), cmd.params.get("count", 1))
         async def scroll_handler(cmd: Command):
@@ -143,6 +175,10 @@ class UniversalBaseline:
         executor.register_handler("observe", observe_handler)
         executor.register_handler("observe_region", observe_handler)
         executor.register_handler("move", move_handler)
+        executor.register_handler("look", look_handler)
+        executor.register_handler("look_and_move", look_and_move_handler)
+        executor.register_handler("hold_keys", hold_keys_handler)
+        executor.register_handler("release_keys", release_keys_handler)
         executor.register_handler("click", click_handler)
         executor.register_handler("scroll", scroll_handler)
         executor.register_handler("key", key_handler)

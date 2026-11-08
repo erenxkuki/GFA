@@ -52,6 +52,15 @@ class CommandRegistry:
             optional=["duration_ms", "speed"],
             field_types={"direction": str, "duration_ms": int, "speed": (int, float)},
             max_duration_ms=5000)
+        add(type="look", category="mouse", required=["dx", "dy"],
+            field_types={"dx": int, "dy": int})
+        add(type="look_and_move", category="movement",
+            optional=["look_dx", "look_dy", "keys"],
+            field_types={"look_dx": int, "look_dy": int, "keys": list})
+        add(type="hold_keys", category="keyboard", required=["keys"],
+            field_types={"keys": list})
+        add(type="release_keys", category="keyboard", required=["keys"],
+            field_types={"keys": list})
         add(type="stop_movement", category="movement")
         # Mouse
         add(type="mouse_move", category="mouse", optional=["x", "y", "dx", "dy", "relative"],

@@ -50,3 +50,4 @@
 - Fast Action Engine (gfa.fast): speed profiles, reflex layer for instant reactions, parallel command execution, reduced input latency, configurable OCR frequency.
 - DLSS-style frame generation (gfa.vision.framegen): interpolated perception frames, motion prediction, keyframe detection.
 - Real-time action system (gfa.realtime): genre profiles (shooter, racing, fighting, platformer, story), motion tracking & prediction, aim assist, steering controller, high-frequency game loop with reflexes.
+- Synchronous input (gfa.universal.sync_input): simultaneous keyboard+mouse via batched SendInput, look_and_move for FPS, hold/release keys, tap sequences. Games requiring concurrent inputs (WASD + mouse look) now work correctly.
