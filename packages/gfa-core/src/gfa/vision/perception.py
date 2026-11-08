@@ -46,7 +46,7 @@ class VisionPerception:
         ui_regions = self._detect_ui_regions(frame)
         text_blocks = self._detect_text_regions(frame)
         changes = self._compute_changes(objects)
-        summary = self._build_compact_summary(frame, objects, ui_regions, changes)
+        summary = self._build_compact_summary(frame, objects, ui_regions, text_blocks, changes)
         self._prev_objects = objects
         return PerceptionResult(
             objects=objects, ui_regions=ui_regions, text_blocks=text_blocks,
@@ -70,8 +70,23 @@ class VisionPerception:
         return regions
 
     def _detect_text_regions(self, frame: CapturedFrame) -> list[str]:
-        """Placeholder: real OCR would go here. Returns empty until OCR available."""
-        # Windows OCR could be wired here via WinRT. For now, return [].
+        """Use Windows OCR to extract text from the frame.
+
+        OCR requires sufficient resolution; skip tiny frames.
+        """
+        if frame.width < 300 or frame.height < 200:
+            return []
+        try:
+            from gfa.vision.ocr import WindowsOCR
+            result = WindowsOCR.extract_from_frame(frame)
+            lines = result.get("lines", [])
+            text = result.get("text", "")
+            if lines:
+                return lines
+            if text:
+                return [text]
+        except Exception:  # noqa: BLE001
+            pass
         return []
 
     def _compute_changes(self, objects: list[DetectedObject]) -> list[str]:
@@ -91,7 +106,7 @@ class VisionPerception:
                 changes.append(f"{label} disappeared")
         return changes
 
-    def _build_compact_summary(self, frame, objects, ui_regions, changes) -> str:
+    def _build_compact_summary(self, frame, objects, ui_regions, text_blocks, changes) -> str:
         parts = [f"Frame {frame.width}x{frame.height}."]
         if objects:
             obj_str = ", ".join(f"{o.label}@({o.x},{o.y})" for o in objects)
@@ -100,4 +115,8 @@ class VisionPerception:
             parts.append("Changes: " + "; ".join(changes) + ".")
         if ui_regions:
             parts.append(f"UI regions: {', '.join(r.label for r in ui_regions)}.")
+        # OCR text
+        if text_blocks:
+            ocr_text = " | ".join(text_blocks[:10])
+            parts.append(f"Screen text: {ocr_text}.")
         return " ".join(parts)

@@ -135,6 +135,7 @@ gfa/
 ## 🎯 Features
 
 ### Computer Vision & Token Optimization
+- **Windows OCR** — extracts in-game text (dialogue, objectives, menus, HUD) via built-in WinRT OCR, no external deps
 - **Compact state mode** — convert frames to short text summaries instead of full screenshots (≈10× fewer tokens)
 - **UI region detection** — health bars, minimap, dialogue, menus
 - **Object & change tracking** — color-blob detection with movement deltas
