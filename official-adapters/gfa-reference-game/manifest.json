@@ -1,0 +1,14 @@
+{
+  "manifest_version": "1",
+  "id": "official.gfa-reference-game",
+  "name": "GFA Reference Game Adapter",
+  "version": "1.0.0",
+  "description": "Official reference adapter for the GFA test sandbox game. Demonstrates structured observations and command execution. Not a commercial game.",
+  "author": "GFA Core Team",
+  "license": "MIT",
+  "gfa_compatibility": ">=0.1.0",
+  "gcl_compatibility": "gcl-v1",
+  "capabilities": ["game.observe_state", "game.move", "game.reset"],
+  "entrypoint": "python adapter.py",
+  "permissions": []
+}

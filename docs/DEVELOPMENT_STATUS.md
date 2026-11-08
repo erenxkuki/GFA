@@ -20,7 +20,8 @@
 - Five memory categories, SQLite storage, CRUD, retrieval ranking, dedup, compression, version history, export/import, working memory, experience extraction. CLI memory commands. Agent integration (retrieve before reasoning, store after step). Tests.
 ## Phase 7 — Adapter SDK: COMPLETE
 - Manifest schema, JSON-RPC protocol, Python base adapter + runner + host, testing utilities, CLI (init/validate/test), example adapters in Python and Node.js (protocol independence demonstrated).
-## Phase 8 — Official Game Adapters: PENDING
+## Phase 8 — Official Game Adapters: COMPLETE (reference)
+- Official reference game adapter under official-adapters/gfa-reference-game with manifest, structured observe/execute, compatibility matrix, tests. No commercial game available in dev environment; labeled as reference adapter.
 ## Phase 9 — Registry Backend: PENDING
 ## Phase 10 — Community Website: PENDING
 ## Phase 11 — Desktop Application: PENDING
