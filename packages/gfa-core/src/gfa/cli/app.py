@@ -358,7 +358,7 @@ def get_memory_manager():
 
 
 @memory_app.command("list")
-def memory_list(game: Optional[str] = typer.Option(None, "--game"), category: Optional[str] = typer.Option(None, "--category"),
+def memory_list(game: str | None = typer.Option(None, "--game"), category: str | None = typer.Option(None, "--category"),
                limit: int = typer.Option(50, "--limit"), json_output: bool = typer.Option(False, "--json")):
     mm = get_memory_manager()
     recs = mm.list(game_id=game, category=category, limit=limit)
@@ -376,7 +376,7 @@ def memory_list(game: Optional[str] = typer.Option(None, "--game"), category: Op
 
 
 @memory_app.command("search")
-def memory_search(query: str, game: Optional[str] = typer.Option(None, "--game"),
+def memory_search(query: str, game: str | None = typer.Option(None, "--game"),
                  limit: int = typer.Option(10, "--limit"), json_output: bool = typer.Option(False, "--json")):
     mm = get_memory_manager()
     recs = mm.retrieve(query, game_id=game, limit=limit)
@@ -399,7 +399,7 @@ def memory_stats(json_output: bool = typer.Option(False, "--json")):
 
 
 @memory_app.command("export")
-def memory_export(path: str, game: Optional[str] = typer.Option(None, "--game")):
+def memory_export(path: str, game: str | None = typer.Option(None, "--game")):
     mm = get_memory_manager()
     n = mm.export_json(Path(path), game_id=game)
     console.print(f"Exported {n} memories to {path}")
@@ -413,7 +413,7 @@ def memory_import(path: str, overwrite: bool = typer.Option(False, "--overwrite"
 
 
 @memory_app.command("compress")
-def memory_compress(game: Optional[str] = typer.Option(None, "--game"), json_output: bool = typer.Option(False, "--json")):
+def memory_compress(game: str | None = typer.Option(None, "--game"), json_output: bool = typer.Option(False, "--json")):
     mm = get_memory_manager()
     data = mm.compress(game_id=game)
     if json_output:
@@ -430,6 +430,103 @@ def memory_versions(memory_id: str, json_output: bool = typer.Option(False, "--j
         typer.echo(json.dumps(data, indent=2, default=str))
     else:
         console.print_json(json.dumps(data, indent=2, default=str))
+
+
+# ---- adapter ----
+adapter_app = typer.Typer(help="Adapter commands")
+app.add_typer(adapter_app, name="adapter")
+
+
+@adapter_app.command("validate")
+def adapter_validate(path: str, json_output: bool = typer.Option(False, "--json")):
+    from gfa.adapter_sdk.manifest import validate_manifest_file
+    ok, errors, manifest = validate_manifest_file(Path(path) / "manifest.json" if Path(path).is_dir() else Path(path))
+    data = {"ok": ok, "errors": errors, "manifest": manifest.model_dump() if manifest else None}
+    if json_output:
+        typer.echo(json.dumps(data, indent=2, default=str))
+    else:
+        if ok:
+            console.print(f"[green]Valid[/green] {manifest.id} v{manifest.version}")
+        else:
+            console.print("[red]Invalid[/red]")
+            for e in errors:
+                console.print(f"  - {e}")
+    if not ok:
+        raise typer.Exit(code=1)
+
+
+@adapter_app.command("test")
+def adapter_test(path: str):
+    from gfa.adapter_sdk.host import AdapterHost
+    from gfa.adapter_sdk.manifest import validate_manifest_file
+    p = Path(path)
+    manifest_path = p / "manifest.json" if p.is_dir() else p
+    ok, errors, manifest = validate_manifest_file(manifest_path)
+    if not ok:
+        console.print("[red]Invalid manifest[/red]")
+        for e in errors:
+            console.print(f"  - {e}")
+        raise typer.Exit(code=1)
+    adir = manifest_path.parent
+    host = AdapterHost(manifest, cwd=adir)
+    init = host.start()
+    console.print(f"Initialize: {init}")
+    h = host.health()
+    console.print(f"Health: {h}")
+    obs = host.observe()
+    console.print(f"Observe: {obs}")
+    host.shutdown()
+    console.print("[green]Adapter test passed[/green]")
+
+
+@adapter_app.command("init")
+def adapter_init(name: str, directory: str = typer.Option(".", "--dir"), language: str = typer.Option("python", "--language")):
+    from gfa.adapter_sdk.manifest import AdapterManifest
+    d = Path(directory) / name
+    d.mkdir(parents=True, exist_ok=True)
+    aid = "community." + name.lower().replace(" ", "-")
+    if language == "node":
+        manifest = AdapterManifest(id=aid, name=name, version="0.1.0", entrypoint="node adapter.js",
+                                  capabilities=["example.observe"])
+        manifest.to_file(d / "manifest.json")
+        (d / "adapter.js").write_text(
+            "const readline=require('readline');\n"
+            "let init=false,c=0;\n"
+            "function respond(id,r,e){const m={jsonrpc:'2.0',id};if(e)m.error=e;else m.result=r;process.stdout.write(JSON.stringify(m)+'\\n');}\n"
+            "const rl=readline.createInterface({input:process.stdin});\n"
+            "rl.on('line',l=>{l=l.trim();if(!l)return;let r;try{r=JSON.parse(l);}catch(e){respond(null,null,{code:-32700,message:'parse'});return;}\n"
+            "const m=r.method,p=r.params||{},id=r.id;\n"
+            "if(m==='initialize'){init=true;respond(id,{ok:true,capabilities:['example.observe']});}\n"
+            "else if(m==='health'){respond(id,{ok:true,initialized:init});}\n"
+            "else if(m==='observe'){c++;respond(id,{observations:[{type:'example',count:c}]});}\n"
+            "else if(m==='execute'){respond(id,{status:'succeeded',echoed:p.command});}\n"
+            "else if(m==='shutdown'){init=false;respond(id,{ok:true});process.exit(0);}\n"
+            "else{respond(id,null,{code:-32601,message:'not found'});}\n});\n",
+            encoding="utf-8",
+        )
+    else:
+        manifest = AdapterManifest(id=aid, name=name, version="0.1.0", entrypoint="python adapter.py",
+                                  capabilities=["example.observe"])
+        manifest.to_file(d / "manifest.json")
+        (d / "adapter.py").write_text(
+            "import sys, json\n"
+            "from pathlib import Path\n"
+            "sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'packages' / 'gfa-core' / 'src'))\n"
+            "from gfa.adapter_sdk.base import Adapter, AdapterRunner\n"
+            "from gfa.adapter_sdk.manifest import AdapterManifest\n"
+            "m = AdapterManifest.from_file(Path(__file__).with_name('manifest.json'))\n"
+            "class A(Adapter):\n"
+            "    def __init__(self, manifest):\n"
+            "        super().__init__(manifest); self.c=0\n"
+            "    def observe(self):\n"
+            "        self.c+=1; return {'observations':[{'type':'example','count':self.c}]}\n"
+            "    def execute(self, command):\n"
+            "        return {'status':'succeeded','echoed':command}\n"
+            "if __name__=='__main__':\n"
+            "    AdapterRunner(A(m)).run_stdio()\n",
+            encoding="utf-8",
+        )
+    console.print(f"Scaffolded adapter in {d}")
 
 
 def main():

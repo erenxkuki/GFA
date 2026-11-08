@@ -18,7 +18,8 @@
 - Perception interface + color-blob implementation, world state, reasoning coordinator (model + fallback), planning engine, autonomous gameplay agent loop with replanning/recovery, objective detection. Integration test: agent reaches target in Tkinter sandbox using real observations and input.
 ## Phase 6 — Persistent Memory Engine: COMPLETE
 - Five memory categories, SQLite storage, CRUD, retrieval ranking, dedup, compression, version history, export/import, working memory, experience extraction. CLI memory commands. Agent integration (retrieve before reasoning, store after step). Tests.
-## Phase 7 — Adapter SDK: PENDING
+## Phase 7 — Adapter SDK: COMPLETE
+- Manifest schema, JSON-RPC protocol, Python base adapter + runner + host, testing utilities, CLI (init/validate/test), example adapters in Python and Node.js (protocol independence demonstrated).
 ## Phase 8 — Official Game Adapters: PENDING
 ## Phase 9 — Registry Backend: PENDING
 ## Phase 10 — Community Website: PENDING

@@ -1,0 +1,14 @@
+{
+  "manifest_version": "1",
+  "id": "community.echo",
+  "name": "Echo Adapter",
+  "version": "1.0.0",
+  "description": "Example adapter that echoes observations and commands.",
+  "author": "GFA",
+  "license": "MIT",
+  "gfa_compatibility": ">=0.1.0",
+  "gcl_compatibility": "gcl-v1",
+  "capabilities": ["echo.observe", "echo.act"],
+  "entrypoint": "python adapter.py",
+  "permissions": []
+}
