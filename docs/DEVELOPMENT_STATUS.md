@@ -12,7 +12,8 @@
 ## Phase 3 — GCL v1: COMPLETE (core)
 - Schemas, parser, validator, capability system, executor with cancellation/timeouts, tests.
 
-## Phase 4 — Universal Baseline: PENDING
+## Phase 4 — Universal Baseline: COMPLETE
+- Window enumeration/selection, GDI screen capture to PNG, input control (keyboard/mouse/scroll), emergency stop, GCL handler wiring, integration test (observe+click on Tkinter sandbox).
 ## Phase 5 — Agent Intelligence: PENDING
 ## Phase 6 — Persistent Memory Engine: PENDING
 ## Phase 7 — Adapter SDK: PENDING
