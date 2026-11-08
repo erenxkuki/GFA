@@ -48,3 +48,5 @@
 ## Enhancements
 - CV/Vision pipeline (gfa.vision): enhanced perception, UI region detection, Windows OCR (in-game text extraction), compact state summaries, token optimizer (compact/hybrid/full modes), frame diff, multimodal model messages.
 - Fast Action Engine (gfa.fast): speed profiles, reflex layer for instant reactions, parallel command execution, reduced input latency, configurable OCR frequency.
+- DLSS-style frame generation (gfa.vision.framegen): interpolated perception frames, motion prediction, keyframe detection.
+- Real-time action system (gfa.realtime): genre profiles (shooter, racing, fighting, platformer, story), motion tracking & prediction, aim assist, steering controller, high-frequency game loop with reflexes.

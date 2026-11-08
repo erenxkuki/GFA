@@ -134,6 +134,14 @@ gfa/
 
 ## 🎯 Features
 
+### Real-Time Action System (Shooters, Racing, Fighting)
+- **Genre profiles** — shooter, racing, fighting, platformer, story — each tuned for FPS, input rate, smoothing, aim assist
+- **Motion tracking & prediction** — tracks entities across frames, predicts future positions (lead targeting)
+- **Aim assist** — target selection within FOV, smoothing, prediction compensation
+- **Steering controller** — deadzone, speed-sensitive reduction, progressive smoothing for racing
+- **High-frequency game loop** — runs at 30-60 FPS with reflex-first, model-at-reduced-rate
+- **Reflex layer** — instant reactions bypass model reasoning entirely
+
 ### Frame Generation (DLSS-style for AI)
 - **Perception frame generation** — like DLSS/FSR frame gen: captures at reduced rate, interpolates intermediate perception states using motion prediction + frame diff
 - **Keyframe detection** — full perception (OCR, color detection) only runs on keyframes or when significant change detected
