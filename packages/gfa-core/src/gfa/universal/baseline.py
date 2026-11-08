@@ -171,6 +171,7 @@ class UniversalBaseline:
         cs.add("universal.screen_capture")
         cs.add("universal.keyboard")
         cs.add("universal.mouse")
+        cs.add("universal.audio")
         return cs
 
     def register_gcl_handlers(self, executor) -> None:

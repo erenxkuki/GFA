@@ -63,6 +63,7 @@ class GameplayAgent:
         objective_check=None,  # callable(world_state) -> bool
         max_steps: int = 20,
         step_delay: float = 0.5,
+        audio_monitor=None,  # gfa.audio.AudioMonitor | None
     ):
         self.baseline = baseline
         self.reasoning = reasoning
@@ -81,6 +82,7 @@ class GameplayAgent:
         self.objective_check = objective_check
         self.max_steps = max_steps
         self.step_delay = step_delay
+        self.audio_monitor = audio_monitor
         self._emergency = False
         self.action_history: list[dict[str, Any]] = []
         self.errors: list[str] = []
@@ -145,6 +147,17 @@ class GameplayAgent:
             except Exception:  # noqa: BLE001
                 spatial_text = ""
 
+            # Audio awareness: poll detected sound events into the world state
+            audio_text = ""
+            if self.audio_monitor is not None:
+                try:
+                    audio_events = self.audio_monitor.poll()
+                    if audio_events:
+                        audio_text = "Audio: " + "; ".join(
+                            f"{e.category}(conf={e.confidence:.2f})" for e in audio_events[-8:])
+                except Exception:  # noqa: BLE001
+                    audio_text = ""
+
             retrieved = []
             if self.memory_manager is not None:
                 try:
@@ -162,7 +175,7 @@ class GameplayAgent:
                 objectives=[objective],
                 recent_actions=recent[-5:],
                 available_capabilities=sorted(caps.capabilities),
-                observation_summary=compact_summary + (f" Spatial: {spatial_text}" if spatial_text else ""),
+                observation_summary=compact_summary + (f" Spatial: {spatial_text}" if spatial_text else "") + (f" Audio: {audio_text}" if audio_text else ""),
             )
 
             # Token optimization: decide whether to send image
