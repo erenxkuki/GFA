@@ -80,6 +80,7 @@ class FastActionEngine:
         # Apply profile to agent
         self.agent.step_delay = profile.step_delay
         self.agent.vision_mode = "compact" if profile.skip_vision_on_fast else self.agent.vision_mode
+        self.agent.use_framegen = True
         if hasattr(self.agent.baseline, "config"):
             self.agent.baseline.config.capture_scale = profile.capture_scale
 

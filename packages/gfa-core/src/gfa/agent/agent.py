@@ -11,10 +11,13 @@ from gfa.agent.perception import PerceptionEngine, ColorBlobPerception
 try:
     from gfa.vision.perception import VisionPerception, PerceptionResult
     from gfa.vision.optimizer import TokenOptimizer
+    from gfa.vision.framegen.generator import FrameGenerator, GeneratedFrame
 except Exception:  # noqa: BLE001
     VisionPerception = None  # type: ignore
     PerceptionResult = None  # type: ignore
     TokenOptimizer = None  # type: ignore
+    FrameGenerator = None  # type: ignore
+    GeneratedFrame = None  # type: ignore
 from gfa.agent.planning import PlanningEngine
 from gfa.agent.reasoning import ReasoningCoordinator
 from gfa.agent.world_state import WorldState
@@ -56,6 +59,7 @@ class GameplayAgent:
         model_provenance: str | None = None,
         vision_mode: str = "compact",  # compact | hybrid | full
         use_vision: bool = True,
+        use_framegen: bool = False,
         objective_check=None,  # callable(world_state) -> bool
         max_steps: int = 20,
         step_delay: float = 0.5,
@@ -72,6 +76,8 @@ class GameplayAgent:
         self.model_provenance = model_provenance
         self.vision_mode = vision_mode
         self.use_vision = use_vision
+        self.use_framegen = use_framegen
+        self._framegen = None
         self.objective_check = objective_check
         self.max_steps = max_steps
         self.step_delay = step_delay
@@ -102,10 +108,22 @@ class GameplayAgent:
             # Perception
             compact_summary = f"frame {frame.width}x{frame.height}"
             vision_result = None
+            objects = []
+
             if self.use_vision and VisionPerception is not None and isinstance(self.perception, VisionPerception):
-                vision_result = self.perception.analyze(frame)
-                objects = vision_result.objects
-                compact_summary = vision_result.compact_summary
+                if self.use_framegen and FrameGenerator is not None:
+                    if self._framegen is None:
+                        self._framegen = FrameGenerator(self.perception)
+                    gen = self._framegen.process(frame)
+                    vision_result = gen.result
+                    objects = vision_result.objects
+                    compact_summary = vision_result.compact_summary
+                    if not gen.is_real:
+                        compact_summary += " [interpolated]"
+                else:
+                    vision_result = self.perception.analyze(frame)
+                    objects = vision_result.objects
+                    compact_summary = vision_result.compact_summary
             elif hasattr(self.perception, "analyze"):
                 r = self.perception.analyze(frame)
                 if isinstance(r, list):
@@ -116,8 +134,6 @@ class GameplayAgent:
                     compact_summary = r.compact_summary
                 else:
                     objects = []
-            else:
-                objects = []
 
             retrieved = []
             if self.memory_manager is not None:

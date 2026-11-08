@@ -134,6 +134,12 @@ gfa/
 
 ## 🎯 Features
 
+### Frame Generation (DLSS-style for AI)
+- **Perception frame generation** — like DLSS/FSR frame gen: captures at reduced rate, interpolates intermediate perception states using motion prediction + frame diff
+- **Keyframe detection** — full perception (OCR, color detection) only runs on keyframes or when significant change detected
+- **Velocity prediction** — object positions extrapolated between captures
+- **Massive cost reduction** — 5× fewer OCR calls, 5× fewer vision passes, AI stays responsive
+
 ### Computer Vision & Token Optimization
 - **Windows OCR** — extracts in-game text (dialogue, objectives, menus, HUD) via built-in WinRT OCR, no external deps
 - **Compact state mode** — convert frames to short text summaries instead of full screenshots (≈10× fewer tokens)
