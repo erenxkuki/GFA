@@ -10,6 +10,7 @@ from gfa.gcl.capabilities import CapabilitySet
 from gfa.universal.capture import CapturedFrame, capture_window, frame_diff_ratio
 from gfa.universal.input import InputController
 from gfa.universal.sync_input import SyncInputController
+from gfa.input_profiles.keybinds import KeybindProfile, fps_wasd
 from gfa.universal.windows import WindowInfo, find_windows, focus_window, is_window_valid
 
 
@@ -20,6 +21,7 @@ class BaselineConfig:
     capture_scale: float = 0.5
     capture_interval: float = 1.0
     client_only: bool = True
+    keybind_profile: KeybindProfile | None = None
 
 
 class UniversalBaseline:
@@ -27,6 +29,7 @@ class UniversalBaseline:
         self.config = config or BaselineConfig()
         self.input = InputController()
         self.sync_input = SyncInputController()
+        self.keybinds = self.config.keybind_profile or fps_wasd()
         self._hwnd: int | None = self.config.hwnd
         self._last_frame: CapturedFrame | None = None
         self._last_raw: bytes | None = None
@@ -80,20 +83,26 @@ class UniversalBaseline:
 
     # High-level action helpers used by GCL handlers
     def move(self, direction: str, duration_ms: int = 500) -> dict[str, Any]:
-        key_map = {"forward": "w", "backward": "s", "left": "a", "right": "d",
-                   "up": "up", "down": "down"}
+        key_map = {
+            "forward": self.keybinds.move_forward_key,
+            "backward": self.keybinds.move_backward_key,
+            "left": self.keybinds.move_left_key,
+            "right": self.keybinds.move_right_key,
+            "up": "up", "down": "down",
+        }
         key = key_map.get(direction)
         if key is None:
             raise ValueError(f"unknown direction {direction}")
         self.input.key_down(key)
         time.sleep(min(duration_ms, 5000) / 1000.0)
         self.input.key_up(key)
-        return {"direction": direction, "duration_ms": duration_ms}
+        return {"direction": direction, "duration_ms": duration_ms, "key": key}
 
     def look(self, dx: int, dy: int) -> dict[str, Any]:
-        """Move mouse to look around (camera)."""
-        self.sync_input.move_mouse(dx, dy)
-        return {"look_dx": dx, "look_dy": dy}
+        """Move mouse to look around (camera), applying keybind mouse config."""
+        adx, ady = self.keybinds.apply_mouse_delta(dx, dy)
+        self.sync_input.move_mouse(adx, ady)
+        return {"look_dx": adx, "look_dy": ady}
 
     def look_and_move(self, look_dx: int, look_dy: int, keys: list[str] | None = None) -> dict[str, Any]:
         """Simultaneously look (mouse) and move (keyboard) — core FPS pattern."""

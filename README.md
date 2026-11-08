@@ -142,6 +142,7 @@ gfa/
 - **High-frequency game loop** — runs at 30-60 FPS with reflex-first, model-at-reduced-rate
 - **Reflex layer** — instant reactions bypass model reasoning entirely
 - **Synchronous input** — keyboard + mouse sent simultaneously (WASD + mouse look in one SendInput batch)
+- **Per-game keybind profiles** — configurable key mappings, mouse sensitivity/inversion, presets for FPS/racing/platformer, save/load, CLI commands
 
 ### Frame Generation (DLSS-style for AI)
 - **Perception frame generation** — like DLSS/FSR frame gen: captures at reduced rate, interpolates intermediate perception states using motion prediction + frame diff

@@ -635,6 +635,47 @@ def logs(lines: int = typer.Option(50, "--lines", "-n"), json_output: bool = typ
             console.print(ln)
 
 
+# ---- profile (keybinds) ----
+profile_app = typer.Typer(help="Keybind profile commands")
+app.add_typer(profile_app, name="profile")
+
+
+@profile_app.command("list")
+def profile_list(json_output: bool = typer.Option(False, "--json")):
+    from gfa.input_profiles.keybinds import list_presets
+    presets = list_presets()
+    if json_output:
+        typer.echo(json.dumps(presets))
+    else:
+        for p in presets:
+            console.print(p)
+
+
+@profile_app.command("show")
+def profile_show(name: str, json_output: bool = typer.Option(False, "--json")):
+    from gfa.input_profiles.keybinds import get_preset
+    p = get_preset(name)
+    if p is None:
+        err.print(f"[red]Unknown preset:[/red] {name}")
+        raise typer.Exit(code=1)
+    data = p.to_dict()
+    if json_output:
+        typer.echo(json.dumps(data, indent=2))
+    else:
+        console.print_json(json.dumps(data, indent=2))
+
+
+@profile_app.command("save")
+def profile_save(name: str, path: str):
+    from gfa.input_profiles.keybinds import get_preset
+    p = get_preset(name)
+    if p is None:
+        err.print(f"[red]Unknown preset:[/red] {name}")
+        raise typer.Exit(code=1)
+    p.save(Path(path))
+    console.print(f"Saved profile to {path}")
+
+
 def main():
     app()
 
