@@ -106,7 +106,7 @@ class InputController:
 
     def tap_key(self, key: str) -> None:
         self.key_down(key)
-        time.sleep(0.05)
+        time.sleep(0.02)
         self.key_up(key)
 
     def type_text(self, text: str) -> None:
