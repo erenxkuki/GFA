@@ -14,7 +14,8 @@
 
 ## Phase 4 — Universal Baseline: COMPLETE
 - Window enumeration/selection, GDI screen capture to PNG, input control (keyboard/mouse/scroll), emergency stop, GCL handler wiring, integration test (observe+click on Tkinter sandbox).
-## Phase 5 — Agent Intelligence: PENDING
+## Phase 5 — Agent Intelligence: COMPLETE
+- Perception interface + color-blob implementation, world state, reasoning coordinator (model + fallback), planning engine, autonomous gameplay agent loop with replanning/recovery, objective detection. Integration test: agent reaches target in Tkinter sandbox using real observations and input.
 ## Phase 6 — Persistent Memory Engine: PENDING
 ## Phase 7 — Adapter SDK: PENDING
 ## Phase 8 — Official Game Adapters: PENDING
