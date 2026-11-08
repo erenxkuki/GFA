@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from gfa.agent.agent import GameplayAgent
+from gfa.latency.optimizer import LatencyOptimizer
 from gfa.agent.world_state import WorldState
 from gfa.gcl.executor import CommandExecutor
 from gfa.gcl.parser import parse_batch
@@ -73,6 +74,8 @@ class FastActionEngine:
         self.agent = agent
         self.profile = profile
         self.reflexes = reflexes or ReflexLayer()
+        self.latency = LatencyOptimizer(target_fps=int(1.0 / max(0.001, profile.step_delay)),
+                                       ocr_every_n=profile.run_ocr_every_n)
         self._frame_count = 0
         self._last_ocr_frame = 0
         self._cached_text_blocks: list[str] = []

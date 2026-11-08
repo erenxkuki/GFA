@@ -142,6 +142,7 @@ gfa/
 - **High-frequency game loop** — runs at 30-60 FPS with reflex-first, model-at-reduced-rate
 - **Reflex layer** — instant reactions bypass model reasoning entirely
 - **Synchronous input** — keyboard + mouse sent simultaneously (WASD + mouse look in one SendInput batch)
+- **Latency optimization** — adaptive frame skipping, OCR throttling, speculative execution (branch prediction), input coalescing
 - **Per-game keybind profiles** — configurable key mappings, mouse sensitivity/inversion, presets for FPS/racing/platformer, save/load, CLI commands
 - **Combat combos** — predefined input sequences (dodge, 3-hit, parry counter, dash attack) with precise timing and cooldowns
 - **3D spatial awareness** — depth estimation from 2D cues, threat detection, nearest object finding
