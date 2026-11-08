@@ -22,7 +22,8 @@
 - Manifest schema, JSON-RPC protocol, Python base adapter + runner + host, testing utilities, CLI (init/validate/test), example adapters in Python and Node.js (protocol independence demonstrated).
 ## Phase 8 — Official Game Adapters: COMPLETE (reference)
 - Official reference game adapter under official-adapters/gfa-reference-game with manifest, structured observe/execute, compatibility matrix, tests. No commercial game available in dev environment; labeled as reference adapter.
-## Phase 9 — Registry Backend: PENDING
+## Phase 9 — Registry Backend: COMPLETE
+- FastAPI registry API with SQLite metadata, submit/search/get, releases, verification, compatibility checks, checksum endpoint, pagination. Tests via TestClient.
 ## Phase 10 — Community Website: PENDING
 ## Phase 11 — Desktop Application: PENDING
 ## Phase 12 — CLI and Developer Experience: IN PROGRESS
