@@ -29,6 +29,7 @@ class BaselineConfig:
     client_only: bool = True
     keybind_profile: KeybindProfile | None = None
     data_dir: Path | None = None  # macro library location; None = default GFA data dir
+    auto_detect_game: bool = False  # apply detected game's keybind profile on first observe
 
 
 class UniversalBaseline:
@@ -41,6 +42,7 @@ class UniversalBaseline:
         self.spatial = SpatialEstimator()
         self.macros = MacroLibrary(self.config.data_dir)
         self.macro_player = MacroPlayer(self._dispatch_macro_command)
+        self._detected_game = None
         self._hwnd: int | None = self.config.hwnd
         self._last_frame: CapturedFrame | None = None
         self._last_raw: bytes | None = None
@@ -67,12 +69,52 @@ class UniversalBaseline:
             raise RuntimeError("Target window no longer valid")
         return self._hwnd
 
+    # ---- Automatic game detection ----
+    def apply_detected_game(self) -> dict[str, Any] | None:
+        """Detect the foreground game and apply its keybind profile.
+
+        Returns a summary dict (game id, confidence, keybind preset applied)
+        or None when no known game matches. Never raises.
+        """
+        try:
+            from gfa.detection.detector import GameDetector
+
+            detector = GameDetector(data_dir=self.config.data_dir)
+            detected = detector.detect()
+        except Exception:  # noqa: BLE001
+            return None
+        self._detected_game = detected
+        applied = False
+        if detected.profile is not None and detected.profile.keybind_preset:
+            try:
+                from gfa.input_profiles.keybinds import get_preset
+
+                preset = get_preset(detected.profile.keybind_preset)
+                if preset is not None:
+                    self.keybinds = preset
+                    applied = True
+            except Exception:  # noqa: BLE001
+                applied = False
+        return {
+            "game_id": detected.game_id,
+            "confidence": detected.confidence,
+            "window_title": detected.window.title if detected.window else None,
+            "keybind_applied": applied,
+            "candidates": [g for g, _ in detected.candidates],
+        }
+
+    @property
+    def detected_game(self):
+        return self._detected_game
+
     def focus(self) -> bool:
         hwnd = self.ensure_window()
         return focus_window(hwnd)
 
     def observe(self) -> CapturedFrame:
         hwnd = self.ensure_window()
+        if self.config.auto_detect_game and self._detected_game is None:
+            self.apply_detected_game()
         self.focus()
         time.sleep(0.1)
         frame = capture_window(hwnd, client_only=self.config.client_only, scale=self.config.capture_scale)

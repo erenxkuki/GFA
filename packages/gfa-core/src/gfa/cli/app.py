@@ -684,6 +684,84 @@ def macro_import(path: str, json_output: bool = typer.Option(False, "--json")):
         console.print(f"Imported macro '{macro.name}'")
 
 
+# ---- detect ----
+@app.command()
+def detect(json_output: bool = typer.Option(False, "--json")):
+    """Detect the currently focused game."""
+    from gfa.detection.detector import GameDetector
+
+    detected = GameDetector(data_dir=get_config().data_dir).detect()
+    if json_output:
+        typer.echo(json.dumps(detected.to_dict(), indent=2, default=str))
+    else:
+        console.print(detected.to_text())
+
+
+# ---- profiles ----
+profiles_app = typer.Typer(help="Game profile commands")
+app.add_typer(profiles_app, name="profiles")
+
+
+def get_game_registry():
+    from gfa.detection.profiles import GameProfileRegistry
+
+    return GameProfileRegistry(get_config().data_dir)
+
+
+@profiles_app.command("list")
+def profiles_list(json_output: bool = typer.Option(False, "--json")):
+    """List registered game profiles."""
+    profiles = get_game_registry().list()
+    rows = [p.to_dict() for p in profiles]
+    if json_output:
+        typer.echo(json.dumps(rows, indent=2, default=str))
+    else:
+        if not rows:
+            console.print("No game profiles.")
+            return
+        t = Table("Game ID", "Name", "Title hints", "Process hints", "Keybind preset")
+        for p in profiles:
+            t.add_row(p.game_id, p.name, ", ".join(p.title_keywords) or "-",
+                      ", ".join(p.process_keywords) or "-", p.keybind_preset or "-")
+        console.print(t)
+
+
+@profiles_app.command("add")
+def profiles_add(
+    game_id: str,
+    title: str = typer.Option("", "--title", help="Window title keyword (comma-separated)"),
+    process: str = typer.Option("", "--process", help="Process name keyword (comma-separated)"),
+    keybind: str | None = typer.Option(None, "--keybind", help="Keybind preset name"),
+    json_output: bool = typer.Option(False, "--json"),
+):
+    """Register a game profile for automatic detection."""
+    from gfa.detection.profiles import GameProfile
+
+    profile = GameProfile(
+        game_id=game_id,
+        title_keywords=[t.strip() for t in title.split(",") if t.strip()],
+        process_keywords=[p.strip() for p in process.split(",") if p.strip()],
+        keybind_preset=keybind,
+    )
+    rec = get_game_registry().register(profile)
+    if json_output:
+        typer.echo(json.dumps(rec.to_dict(), indent=2, default=str))
+    else:
+        console.print(f"Registered game profile '{rec.game_id}'")
+
+
+@profiles_app.command("delete")
+def profiles_delete(game_id: str, json_output: bool = typer.Option(False, "--json")):
+    """Delete a game profile."""
+    ok = get_game_registry().remove(game_id)
+    if json_output:
+        typer.echo(json.dumps({"deleted": ok}, indent=2, default=str))
+    else:
+        console.print(f"Deleted game profile '{game_id}'" if ok else f"Profile not found: {game_id}")
+    if not ok:
+        raise typer.Exit(code=1) from None
+
+
 # ---- adapter ----
 adapter_app = typer.Typer(help="Adapter commands")
 app.add_typer(adapter_app, name="adapter")

@@ -69,6 +69,7 @@ class GameplayAgent:
         feedback_injector=None,  # gfa.feedback.FeedbackInjector | None
         world_model=None,  # gfa.worldmodel.WorldModelPredictor | None
         reward_tracker=None,  # gfa.rl.RewardTracker | None
+        auto_detect_game: bool = False,
     ):
         self.baseline = baseline
         self.reasoning = reasoning
@@ -92,6 +93,7 @@ class GameplayAgent:
         self.feedback_injector = feedback_injector
         self.world_model = world_model
         self.reward_tracker = reward_tracker
+        self.auto_detect_game = auto_detect_game
         self._macro_recorder = None
         self._macro_name: str | None = None
         self._emergency = False
@@ -151,6 +153,13 @@ class GameplayAgent:
         if self.recorder is not None:
             with contextlib.suppress(Exception):  # noqa: BLE001
                 self.recorder.start()
+        # Auto-detect the running game: use it for memory/recorder game_id
+        if self.auto_detect_game and game is None:
+            try:
+                detection = self.baseline.apply_detected_game()
+                game = (detection or {}).get("game_id")
+            except Exception:  # noqa: BLE001
+                game = game
         self.baseline.register_gcl_handlers(self.executor)
         caps = self.baseline.capabilities()
         ctx = ValidationContext(capabilities=caps, max_commands_per_batch=8)
