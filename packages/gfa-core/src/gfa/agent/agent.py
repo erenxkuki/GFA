@@ -66,6 +66,7 @@ class GameplayAgent:
         step_delay: float = 0.5,
         audio_monitor=None,  # gfa.audio.AudioMonitor | None
         recorder=None,  # gfa.replay.SessionRecorder | None
+        feedback_injector=None,  # gfa.feedback.FeedbackInjector | None
     ):
         self.baseline = baseline
         self.reasoning = reasoning
@@ -86,6 +87,7 @@ class GameplayAgent:
         self.step_delay = step_delay
         self.audio_monitor = audio_monitor
         self.recorder = recorder
+        self.feedback_injector = feedback_injector
         self._emergency = False
         self.action_history: list[dict[str, Any]] = []
         self.errors: list[str] = []
@@ -186,6 +188,14 @@ class GameplayAgent:
                 except Exception:  # noqa: BLE001
                     audio_text = ""
 
+            # Human feedback: inject pending human corrections into the world state
+            feedback_text = ""
+            if self.feedback_injector is not None:
+                try:
+                    feedback_text = self.feedback_injector.inject(game=self.game_id or game)
+                except Exception:  # noqa: BLE001
+                    feedback_text = ""
+
             retrieved = []
             if self.memory_manager is not None:
                 try:
@@ -203,7 +213,7 @@ class GameplayAgent:
                 objectives=[objective],
                 recent_actions=recent[-5:],
                 available_capabilities=sorted(caps.capabilities),
-                observation_summary=compact_summary + (f" Spatial: {spatial_text}" if spatial_text else "") + (f" Audio: {audio_text}" if audio_text else ""),
+                observation_summary=compact_summary + (f" Spatial: {spatial_text}" if spatial_text else "") + (f" Audio: {audio_text}" if audio_text else "") + (f" {feedback_text}" if feedback_text else ""),
             )
 
             # Token optimization: decide whether to send image
@@ -260,6 +270,11 @@ class GameplayAgent:
                      "results": [r.status.value for r in results]}
             recent.append(entry)
             self.action_history.append(entry)
+
+            # Corrections were visible to the model for this action: mark applied + learn
+            if self.feedback_injector is not None:
+                with contextlib.suppress(Exception):  # noqa: BLE001
+                    self.feedback_injector.consume_after_action()
 
             self._record_step(step, frame=frame, observation_summary=ws.observation_summary,
                               objects=[{"label": o.label, "x": o.x, "y": o.y, "w": o.w, "h": o.h,

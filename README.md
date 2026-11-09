@@ -145,6 +145,7 @@ gfa/
 - **Latency optimization** — adaptive frame skipping, OCR throttling, speculative execution (branch prediction), input coalescing
 - **Audio perception** — sound event detection & classification (gunshot, explosion, footsteps, music, voice, alerts, SFX) from PCM frames, cooldown-based event buffer, agent awareness of audio events; live WASAPI loopback capture (PowerShell + inline C# COM interop)
 - **Session replay** — record screenshots + model reasoning + GCL commands per step, timeline viewer with frame lookup and scrubbing, CLI (`gfa replay list/show/frames/export`)
+- **Human-in-the-loop corrections** — pending correction queue (preference/override/avoid/positive), injection into the agent world state, learning loop that stores corrections as verified procedural memories; CLI (`gfa feedback add/list/clear/delete`)
 - **Per-game keybind profiles** — configurable key mappings, mouse sensitivity/inversion, presets for FPS/racing/platformer, save/load, CLI commands
 - **Combat combos** — predefined input sequences (dodge, 3-hit, parry counter, dash attack) with precise timing and cooldowns
 - **3D spatial awareness** — depth estimation from 2D cues, threat detection, nearest object finding

@@ -521,6 +521,79 @@ def replay_export(session_id: str, dest: str, json_output: bool = typer.Option(F
         console.print(f"Exported replay {session_id} -> {out}")
 
 
+# ---- feedback ----
+feedback_app = typer.Typer(help="Human-in-the-loop feedback commands")
+app.add_typer(feedback_app, name="feedback")
+
+
+def get_feedback_store():
+    from gfa.feedback.corrections import FeedbackStore
+
+    return FeedbackStore(get_config().data_dir)
+
+
+@feedback_app.command("add")
+def feedback_add(
+    text: str,
+    ctype: str = typer.Option("preference", "--type", help="preference|override|avoid|positive"),
+    game: str | None = typer.Option(None, "--game"),
+    json_output: bool = typer.Option(False, "--json"),
+):
+    """Add a human correction (shown to the agent + learned as a memory)."""
+    store = get_feedback_store()
+    try:
+        corr = store.add(ctype, text, game=game)
+    except ValueError as exc:
+        err.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(code=1) from None
+    if json_output:
+        typer.echo(json.dumps(corr.to_dict(), indent=2, default=str))
+    else:
+        console.print(f"Queued correction {corr.id} [{corr.type}]: {corr.text}")
+
+
+@feedback_app.command("list")
+def feedback_list(game: str | None = typer.Option(None, "--game"),
+                  pending_only: bool = typer.Option(False, "--pending"),
+                  json_output: bool = typer.Option(False, "--json")):
+    """List human corrections."""
+    store = get_feedback_store()
+    items = store.list(game=game, pending_only=pending_only)
+    rows = [c.to_dict() for c in items]
+    if json_output:
+        typer.echo(json.dumps(rows, indent=2, default=str))
+    else:
+        if not rows:
+            console.print("No corrections.")
+            return
+        t = Table("ID", "Type", "Game", "Applied", "Text")
+        for c in items:
+            t.add_row(c.id, c.type, c.game or "-", ("x%d" % c.applied_count) if c.applied else "pending", c.text)
+        console.print(t)
+
+
+@feedback_app.command("clear")
+def feedback_clear(json_output: bool = typer.Option(False, "--json")):
+    """Delete all human corrections."""
+    n = get_feedback_store().clear()
+    if json_output:
+        typer.echo(json.dumps({"cleared": n}, indent=2, default=str))
+    else:
+        console.print(f"Cleared {n} correction(s).")
+
+
+@feedback_app.command("delete")
+def feedback_delete(correction_id: str, json_output: bool = typer.Option(False, "--json")):
+    """Delete one human correction."""
+    ok = get_feedback_store().delete(correction_id)
+    if json_output:
+        typer.echo(json.dumps({"deleted": ok}, indent=2, default=str))
+    else:
+        console.print(f"Deleted {correction_id}" if ok else f"Not found: {correction_id}")
+    if not ok:
+        raise typer.Exit(code=1) from None
+
+
 # ---- adapter ----
 adapter_app = typer.Typer(help="Adapter commands")
 app.add_typer(adapter_app, name="adapter")
