@@ -1,0 +1,26 @@
+{
+  "manifest_version": "1",
+  "id": "official.gfa-minecraft",
+  "name": "GFA Minecraft Adapter",
+  "version": "1.0.0",
+  "description": "Reference adapter for Minecraft Java/Bedrock — observes HUD (health, hunger, hotbar), position, and biome, and exposes movement, mining, crafting, and combat commands. Designed for use with the Universal Baseline (screen capture + SendInput).",
+  "author": "GFA Core Team",
+  "license": "MIT",
+  "gfa_compatibility": ">=0.1.0",
+  "gcl_compatibility": "gcl-v1",
+  "capabilities": [
+    "game.observe_state",
+    "game.move",
+    "game.look",
+    "game.click",
+    "game.mine",
+    "game.place",
+    "game.craft",
+    "game.attack",
+    "game.eat",
+    "game.inventory",
+    "game.reset"
+  ],
+  "entrypoint": "python adapter.py",
+  "permissions": []
+}
