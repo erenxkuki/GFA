@@ -21,6 +21,7 @@ class GameProfile:
 
     game_id: str
     name: str = ""
+    genre: str | None = None  # fps | rpg | platformer | racing | strategy
     title_keywords: list[str] = field(default_factory=list)
     process_keywords: list[str] = field(default_factory=list)
     keybind_preset: str | None = None  # e.g. "fps_wasd"
@@ -59,16 +60,16 @@ class GameProfile:
 def default_profiles() -> list[GameProfile]:
     """Built-in profiles for common games (title/process hints + key binds)."""
     return [
-        GameProfile(game_id="minecraft", name="Minecraft",
+        GameProfile(game_id="minecraft", name="Minecraft", genre="fps",
                     title_keywords=["minecraft"], process_keywords=["javaw.exe", "minecraft"],
                     keybind_preset="fps-wasd"),
-        GameProfile(game_id="roblox", name="Roblox",
+        GameProfile(game_id="roblox", name="Roblox", genre="platformer",
                     title_keywords=["roblox"], process_keywords=["robloxplayerbeta.exe", "roblox"],
                     keybind_preset="fps-wasd"),
-        GameProfile(game_id="zzz", name="Zenless Zone Zero",
+        GameProfile(game_id="zzz", name="Zenless Zone Zero", genre="fps",
                     title_keywords=["zenless", "zzz"], process_keywords=["zzz.exe", "zenless"],
                     keybind_preset="fps-wasd"),
-        GameProfile(game_id="eldenring", name="Elden Ring",
+        GameProfile(game_id="eldenring", name="Elden Ring", genre="rpg",
                     title_keywords=["elden ring"], process_keywords=["eldenring.exe"],
                     keybind_preset="fps-arrows"),
     ]

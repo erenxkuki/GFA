@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from gfa.agent.perception import PerceptionEngine, ColorBlobPerception
+from gfa.agent.perception import DetectedObject, PerceptionEngine, ColorBlobPerception
 try:
     from gfa.vision.perception import VisionPerception, PerceptionResult
     from gfa.vision.optimizer import TokenOptimizer
@@ -70,6 +70,7 @@ class GameplayAgent:
         world_model=None,  # gfa.worldmodel.WorldModelPredictor | None
         reward_tracker=None,  # gfa.rl.RewardTracker | None
         auto_detect_game: bool = False,
+        genre: str | None = None,  # genre profile name: fps | rpg | platformer | racing | strategy
     ):
         self.baseline = baseline
         self.reasoning = reasoning
@@ -94,6 +95,8 @@ class GameplayAgent:
         self.world_model = world_model
         self.reward_tracker = reward_tracker
         self.auto_detect_game = auto_detect_game
+        self.genre = genre
+        self._genre_detector = None
         self._macro_recorder = None
         self._macro_name: str | None = None
         self._emergency = False
@@ -158,6 +161,10 @@ class GameplayAgent:
             try:
                 detection = self.baseline.apply_detected_game()
                 game = (detection or {}).get("game_id")
+                # adopt the detected game's genre for HUD perception
+                detected_genre = (detection or {}).get("genre")
+                if detected_genre and self.genre is None:
+                    self.genre = detected_genre
             except Exception:  # noqa: BLE001
                 game = game
         self.baseline.register_gcl_handlers(self.executor)
@@ -228,6 +235,25 @@ class GameplayAgent:
                 except Exception:  # noqa: BLE001
                     audio_text = ""
 
+            # Genre HUD perception: run specialized detectors for the genre
+            genre_text = ""
+            if self.genre:
+                try:
+                    from gfa.genre.detectors import GenreDetector
+
+                    if self._genre_detector is None or self._genre_detector.genre_name != self.genre:
+                        self._genre_detector = GenreDetector(self.genre)
+                    elements = self._genre_detector.detect(frame)
+                    genre_text = self._genre_detector.summary(elements)
+                    # present elements also become tracked objects
+                    for e in elements:
+                        if e.present and e.confidence > 0:
+                            objects.append(DetectedObject(
+                                label=e.key, x=e.x + e.w // 2, y=e.y + e.h // 2,
+                                w=e.w, h=e.h, confidence=e.confidence))
+                except Exception:  # noqa: BLE001
+                    genre_text = ""
+
             # World model: track motion and predict next-state threats
             prediction_text = ""
             incoming_threats: list[dict[str, Any]] = []
@@ -278,6 +304,7 @@ class GameplayAgent:
                                      + (f" Audio: {audio_text}" if audio_text else "")
                                      + (f" {feedback_text}" if feedback_text else "")
                                      + (f" {prediction_text}" if prediction_text else "")
+                                     + (f" {genre_text}" if genre_text else "")
                                      + (f" {reward_text}" if reward_text else "")),
                 incoming_threats=incoming_threats,
                 reward_summary=reward_text,

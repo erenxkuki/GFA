@@ -98,6 +98,7 @@ class UniversalBaseline:
         return {
             "game_id": detected.game_id,
             "confidence": detected.confidence,
+            "genre": detected.profile.genre if detected.profile else None,
             "window_title": detected.window.title if detected.window else None,
             "keybind_applied": applied,
             "candidates": [g for g, _ in detected.candidates],
