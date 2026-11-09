@@ -22,6 +22,7 @@ class WorldState:
     observation_summary: str = ""
     available_capabilities: list[str] = field(default_factory=list)
     incoming_threats: list[dict[str, Any]] = field(default_factory=list)  # world-model predictions
+    reward_summary: str = ""  # RL reward trend + best-action hint
 
     def to_prompt_text(self) -> str:
         lines = []
@@ -42,4 +43,6 @@ class WorldState:
             lines.append("Observation: " + self.observation_summary)
         if self.incoming_threats:
             lines.append("Incoming threats (predicted): " + str(self.incoming_threats))
+        if self.reward_summary:
+            lines.append(self.reward_summary)
         return "\n".join(lines)

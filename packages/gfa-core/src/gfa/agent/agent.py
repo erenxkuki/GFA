@@ -68,6 +68,7 @@ class GameplayAgent:
         recorder=None,  # gfa.replay.SessionRecorder | None
         feedback_injector=None,  # gfa.feedback.FeedbackInjector | None
         world_model=None,  # gfa.worldmodel.WorldModelPredictor | None
+        reward_tracker=None,  # gfa.rl.RewardTracker | None
     ):
         self.baseline = baseline
         self.reasoning = reasoning
@@ -90,6 +91,7 @@ class GameplayAgent:
         self.recorder = recorder
         self.feedback_injector = feedback_injector
         self.world_model = world_model
+        self.reward_tracker = reward_tracker
         self._macro_recorder = None
         self._macro_name: str | None = None
         self._emergency = False
@@ -237,6 +239,15 @@ class GameplayAgent:
                 except Exception:  # noqa: BLE001
                     feedback_text = ""
 
+            # RL: observe rewards from the current observation summary
+            reward_text = ""
+            if self.reward_tracker is not None:
+                try:
+                    self.reward_tracker.observe(compact_summary, step=step)
+                    reward_text = self.reward_tracker.reward_context()
+                except Exception:  # noqa: BLE001
+                    reward_text = ""
+
             retrieved = []
             if self.memory_manager is not None:
                 try:
@@ -257,8 +268,10 @@ class GameplayAgent:
                 observation_summary=(compact_summary + (f" Spatial: {spatial_text}" if spatial_text else "")
                                      + (f" Audio: {audio_text}" if audio_text else "")
                                      + (f" {feedback_text}" if feedback_text else "")
-                                     + (f" {prediction_text}" if prediction_text else "")),
+                                     + (f" {prediction_text}" if prediction_text else "")
+                                     + (f" {reward_text}" if reward_text else "")),
                 incoming_threats=incoming_threats,
+                reward_summary=reward_text,
             )
 
             # Token optimization: decide whether to send image
@@ -323,6 +336,11 @@ class GameplayAgent:
 
             # Macro recording: capture this executed step
             self._record_macro_step(commands)
+
+            # RL: score the executed commands with the latest reward
+            if self.reward_tracker is not None:
+                with contextlib.suppress(Exception):  # noqa: BLE001
+                    self.reward_tracker.score_action(commands)
 
             self._record_step(step, frame=frame, observation_summary=ws.observation_summary,
                               objects=[{"label": o.label, "x": o.x, "y": o.y, "w": o.w, "h": o.h,
