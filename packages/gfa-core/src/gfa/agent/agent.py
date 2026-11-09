@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -64,6 +65,7 @@ class GameplayAgent:
         max_steps: int = 20,
         step_delay: float = 0.5,
         audio_monitor=None,  # gfa.audio.AudioMonitor | None
+        recorder=None,  # gfa.replay.SessionRecorder | None
     ):
         self.baseline = baseline
         self.reasoning = reasoning
@@ -83,6 +85,7 @@ class GameplayAgent:
         self.max_steps = max_steps
         self.step_delay = step_delay
         self.audio_monitor = audio_monitor
+        self.recorder = recorder
         self._emergency = False
         self.action_history: list[dict[str, Any]] = []
         self.errors: list[str] = []
@@ -91,7 +94,30 @@ class GameplayAgent:
         self._emergency = True
         self.baseline.emergency_stop()
 
+    def _record_step(self, step: int, frame=None, observation_summary: str = "",
+                     objects: Any = None, reasoning: str = "", commands: Any = None,
+                     results: Any = None, audio_events: Any = None,
+                     latency_ms: Any = None, error: str | None = None) -> None:
+        """Record a step to the session replay (no-op if no recorder)."""
+        if self.recorder is None:
+            return
+        with contextlib.suppress(Exception):  # noqa: BLE001 - recording never breaks gameplay
+            self.recorder.record_step(step, frame=frame, observation_summary=observation_summary,
+                                      objects=objects, reasoning=reasoning, commands=commands,
+                                      results=results, audio_events=audio_events,
+                                      latency_ms=latency_ms, error=error)
+
+    def _finish_recording(self, success: bool, reason: str = "") -> None:
+        if self.recorder is None:
+            return
+        with contextlib.suppress(Exception):  # noqa: BLE001
+            self.recorder.finish(success, reason=reason,
+                                 summary=f"{len(self.action_history)} actions, {len(self.errors)} errors")
+
     async def run(self, objective: str, game: str | None = None) -> AgentResult:
+        if self.recorder is not None:
+            with contextlib.suppress(Exception):  # noqa: BLE001
+                self.recorder.start()
         self.baseline.register_gcl_handlers(self.executor)
         caps = self.baseline.capabilities()
         ctx = ValidationContext(capabilities=caps, max_commands_per_batch=8)
@@ -99,11 +125,13 @@ class GameplayAgent:
 
         for step in range(self.max_steps):
             if self._emergency:
+                self._finish_recording(False, "emergency stop")
                 return AgentResult(False, step, "emergency stop", self.action_history, self.errors)
             try:
                 frame = self.baseline.observe()
             except Exception as exc:  # noqa: BLE001
                 self.errors.append(f"observe failed: {exc}")
+                self._record_step(step, error=f"observe failed: {exc}")
                 await asyncio.sleep(self.step_delay)
                 continue
 
@@ -185,12 +213,16 @@ class GameplayAgent:
 
             # objective check
             if self.objective_check is not None and self.objective_check(ws):
+                self._finish_recording(True, "objective met")
                 return AgentResult(True, step, "objective met", self.action_history, self.errors)
 
             commands, reasoning_text = await self.reasoning.decide(ws, sorted(caps.capabilities), image_base64=image_b64)
 
             if not commands:
                 self.errors.append("no commands from reasoning")
+                self._record_step(step, frame=frame, observation_summary=ws.observation_summary,
+                                  objects=[{"label": o.label, "x": o.x, "y": o.y} for o in objects],
+                                  reasoning=reasoning_text, error="no commands from reasoning")
                 await asyncio.sleep(self.step_delay)
                 continue
 
@@ -200,6 +232,8 @@ class GameplayAgent:
             except Exception as exc:  # noqa: BLE001
                 self.errors.append(f"parse failed: {exc}")
                 recent.append({"commands": commands, "result": "parse_error", "error": str(exc)})
+                self._record_step(step, frame=frame, reasoning=reasoning_text, commands=commands,
+                                  error=f"parse failed: {exc}")
                 await asyncio.sleep(self.step_delay)
                 continue
 
@@ -207,6 +241,8 @@ class GameplayAgent:
             if not vr.ok:
                 self.errors.append("validation failed: " + "; ".join(vr.errors))
                 recent.append({"commands": commands, "result": "validation_error", "errors": vr.errors})
+                self._record_step(step, frame=frame, reasoning=reasoning_text, commands=commands,
+                                  error="validation failed: " + "; ".join(vr.errors))
                 await asyncio.sleep(self.step_delay)
                 continue
 
@@ -215,6 +251,8 @@ class GameplayAgent:
                 results = await self.executor.execute_batch(batch, ctx)
             except Exception as exc:  # noqa: BLE001
                 self.errors.append(f"execution failed: {exc}")
+                self._record_step(step, frame=frame, reasoning=reasoning_text, commands=commands,
+                                  error=f"execution failed: {exc}")
                 await asyncio.sleep(self.step_delay)
                 continue
 
@@ -222,6 +260,13 @@ class GameplayAgent:
                      "results": [r.status.value for r in results]}
             recent.append(entry)
             self.action_history.append(entry)
+
+            self._record_step(step, frame=frame, observation_summary=ws.observation_summary,
+                              objects=[{"label": o.label, "x": o.x, "y": o.y, "w": o.w, "h": o.h,
+                                        "confidence": o.confidence} for o in objects],
+                              reasoning=reasoning_text, commands=commands,
+                              results=[r.status.value for r in results],
+                              audio_events=audio_text or None)
 
             # Memory extraction
             if self.memory_manager is not None and ExperienceExtractor is not None:
@@ -247,10 +292,12 @@ class GameplayAgent:
                     ws2 = WorldState(game=game, visible_objects=[{"label": o.label, "x": o.x, "y": o.y} for o in objects2],
                                      objectives=[objective])
                     if self.objective_check(ws2):
+                        self._finish_recording(True, "objective met")
                         return AgentResult(True, step + 1, "objective met", self.action_history, self.errors)
                 except Exception:  # noqa: BLE001
                     pass
 
             await asyncio.sleep(self.step_delay)
 
+        self._finish_recording(False, "max steps reached")
         return AgentResult(False, self.max_steps, "max steps reached", self.action_history, self.errors)

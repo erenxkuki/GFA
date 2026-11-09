@@ -432,6 +432,95 @@ def memory_versions(memory_id: str, json_output: bool = typer.Option(False, "--j
         console.print_json(json.dumps(data, indent=2, default=str))
 
 
+# ---- replay ----
+replay_app = typer.Typer(help="Session replay commands")
+app.add_typer(replay_app, name="replay")
+
+
+def get_replay_data_dir() -> Path:
+    return get_config().data_dir
+
+
+@replay_app.command("list")
+def replay_list(json_output: bool = typer.Option(False, "--json")):
+    """List recorded session replays."""
+    from gfa.replay.viewer import list_replays
+
+    rows = list_replays(get_replay_data_dir())
+    if json_output:
+        typer.echo(json.dumps(rows, indent=2, default=str))
+    else:
+        if not rows:
+            console.print("No replays recorded.")
+            return
+        t = Table("Session", "Game", "Model", "Steps", "Frames", "Result")
+        for r in rows:
+            t.add_row(
+                r.get("session_id", "-"),
+                r.get("game") or "-",
+                r.get("model") or "-",
+                str(r.get("steps", "-")),
+                str(r.get("frames", "-")),
+                "SUCCESS" if r.get("success") else ("FAILED" if r.get("reason") else "-"),
+            )
+        console.print(t)
+
+
+@replay_app.command("show")
+def replay_show(session_id: str, json_output: bool = typer.Option(False, "--json")):
+    """Show a replay summary (timeline + steps)."""
+    from gfa.replay.viewer import ReplayViewer
+
+    viewer = ReplayViewer(get_replay_data_dir(), session_id=session_id)
+    if not viewer.manifest and not viewer.events:
+        err.print(f"[red]Replay not found: {session_id}[/red]")
+        raise typer.Exit(code=1) from None
+    if json_output:
+        typer.echo(json.dumps({
+            "manifest": viewer.manifest,
+            "timeline": viewer.timeline(),
+            "steps": len(viewer.steps),
+            "errors": len(viewer.errors),
+        }, indent=2, default=str))
+    else:
+        console.print(viewer.summary())
+
+
+@replay_app.command("frames")
+def replay_frames(session_id: str, json_output: bool = typer.Option(False, "--json")):
+    """List screenshot frames recorded for a replay."""
+    from gfa.replay.viewer import ReplayViewer
+
+    viewer = ReplayViewer(get_replay_data_dir(), session_id=session_id)
+    frames = []
+    for ev in viewer.steps:
+        if ev.get("frame"):
+            frames.append({"step": ev.get("step"), "t_offset_ms": ev.get("t_offset_ms"), "frame": ev["frame"]})
+    if json_output:
+        typer.echo(json.dumps(frames, indent=2, default=str))
+    else:
+        for f in frames:
+            console.print(f"step {f['step']:3} t={f['t_offset_ms']:>8.0f}ms  {f['frame']}")
+        if not frames:
+            console.print("No frames recorded.")
+
+
+@replay_app.command("export")
+def replay_export(session_id: str, dest: str, json_output: bool = typer.Option(False, "--json")):
+    """Export a replay directory to another location."""
+    from gfa.replay.viewer import ReplayViewer
+
+    viewer = ReplayViewer(get_replay_data_dir(), session_id=session_id)
+    if not viewer.manifest and not viewer.events:
+        err.print(f"[red]Replay not found: {session_id}[/red]")
+        raise typer.Exit(code=1) from None
+    out = viewer.export(Path(dest))
+    if json_output:
+        typer.echo(json.dumps({"exported": str(out)}, indent=2, default=str))
+    else:
+        console.print(f"Exported replay {session_id} -> {out}")
+
+
 # ---- adapter ----
 adapter_app = typer.Typer(help="Adapter commands")
 app.add_typer(adapter_app, name="adapter")
