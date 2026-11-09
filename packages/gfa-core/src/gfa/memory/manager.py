@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from gfa.core.config import ConfigManager
+from gfa.memory.embeddings import Embedder, cosine_similarity
 from gfa.memory.models import (
     MEMORY_CATEGORIES, MEMORY_TYPES, MemoryRecord, jaccard, tokenize,
 )
@@ -34,11 +35,27 @@ class WorkingMemory:
 
 
 class MemoryManager:
-    def __init__(self, config: ConfigManager):
+    def __init__(self, config: ConfigManager, embedder: Embedder | None = None,
+                 default_scorer: str = "keyword"):
         self.config = config
         db_path = config.data_dir / "memory" / "gfa_memory.db"
         self.storage = MemoryStorage(db_path)
         self.working = WorkingMemory()
+        # Semantic retrieval: embedder=None and default_scorer="keyword" keeps
+        # the original keyword/Jaccard behavior (backwards compatible).
+        self.embedder = embedder
+        self.default_scorer = default_scorer
+        self._embed_cache: dict[str, list[float]] = {}
+
+    def _embed(self, memory_id: str, content: str) -> list[float] | None:
+        """Cached embedding for a memory record (None if no embedder)."""
+        if self.embedder is None:
+            return None
+        cached = self._embed_cache.get(memory_id)
+        if cached is None:
+            cached = self.embedder.embed(content)
+            self._embed_cache[memory_id] = cached
+        return cached
 
     def close(self) -> None:
         self.storage.close()
@@ -79,10 +96,13 @@ class MemoryManager:
 
     # ---- Retrieval ----
     def retrieve(self, query: str, game_id: str | None = None, categories: list[str] | None = None,
-                limit: int = 10) -> list[MemoryRecord]:
+                limit: int = 10, scorer: str | None = None) -> list[MemoryRecord]:
         candidates = self.storage.all_for_game(game_id) if game_id else self.storage.all_for_game(None)
         if categories:
             candidates = [c for c in candidates if c.category in categories]
+        active_scorer = scorer or self.default_scorer
+        semantic = active_scorer in ("semantic", "hybrid") and self.embedder is not None
+        query_vec = self.embedder.embed(query) if (semantic and self.embedder is not None) else None
         qtoks = tokenize(query)
         now = datetime.now(timezone.utc)
         scored = []
@@ -94,6 +114,15 @@ class MemoryManager:
                 score += 0.5
             mtoks = tokenize(m.content)
             score += jaccard(qtoks, mtoks) * 3.0
+            # semantic scoring (cosine over embeddings)
+            vec = self._embed(m.id, m.content)
+            if semantic and vec is not None and query_vec is not None:
+                cos = cosine_similarity(query_vec, vec)
+                if active_scorer == "semantic":
+                    # pure semantic: cosine is the primary relevance term
+                    score += cos * 6.0
+                else:  # hybrid: combine both signals
+                    score += cos * 4.0
             # confidence
             score += m.confidence
             # verification
@@ -128,9 +157,10 @@ class MemoryManager:
                 pass
         return out
 
-    def retrieve_for_context(self, game_id: str | None, objective: str, limit: int = 8) -> list[MemoryRecord]:
+    def retrieve_for_context(self, game_id: str | None, objective: str, limit: int = 8,
+                             scorer: str | None = None) -> list[MemoryRecord]:
         cats = ["semantic", "procedural", "spatial", "episodic"]
-        return self.retrieve(objective or "", game_id=game_id, categories=cats, limit=limit)
+        return self.retrieve(objective or "", game_id=game_id, categories=cats, limit=limit, scorer=scorer)
 
     # ---- Dedup & compression ----
     def find_duplicates(self, game_id: str | None = None, threshold: float = 0.85) -> list[tuple[str, str]]:

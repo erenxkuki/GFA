@@ -149,6 +149,7 @@ gfa/
 - **Macro recording & playback** — record executed steps with timing into named macros, timed player with speed scaling, `macro` GCL command, agent-level recording (`start/stop_macro_recording`); CLI (`gfa macro list/show/delete/export/import`)
 - **World model / prediction** — track moving objects (velocity estimation), predict next-frame positions, detect incoming threats with time-to-impact and dodge recommendations; feeds `WorldState.incoming_threats` for reflex rules
 - **RL integration** — reward extraction (score/health/progress deltas), persistent reward ledger with stats, bandit-style strategy scorer (average reward per action signature) with best-action hints in the world state
+- **Semantic memory embeddings** — dependency-free deterministic hash embedder (word tokens + char 3-grams) with cosine retrieval; pluggable scorer (`keyword` default / `semantic` / `hybrid`) with cached embeddings
 - **Per-game keybind profiles** — configurable key mappings, mouse sensitivity/inversion, presets for FPS/racing/platformer, save/load, CLI commands
 - **Combat combos** — predefined input sequences (dodge, 3-hit, parry counter, dash attack) with precise timing and cooldowns
 - **3D spatial awareness** — depth estimation from 2D cues, threat detection, nearest object finding
