@@ -67,6 +67,7 @@ class GameplayAgent:
         audio_monitor=None,  # gfa.audio.AudioMonitor | None
         recorder=None,  # gfa.replay.SessionRecorder | None
         feedback_injector=None,  # gfa.feedback.FeedbackInjector | None
+        world_model=None,  # gfa.worldmodel.WorldModelPredictor | None
     ):
         self.baseline = baseline
         self.reasoning = reasoning
@@ -88,6 +89,7 @@ class GameplayAgent:
         self.audio_monitor = audio_monitor
         self.recorder = recorder
         self.feedback_injector = feedback_injector
+        self.world_model = world_model
         self._macro_recorder = None
         self._macro_name: str | None = None
         self._emergency = False
@@ -215,6 +217,18 @@ class GameplayAgent:
                 except Exception:  # noqa: BLE001
                     audio_text = ""
 
+            # World model: track motion and predict next-state threats
+            prediction_text = ""
+            incoming_threats: list[dict[str, Any]] = []
+            if self.world_model is not None:
+                try:
+                    prediction = self.world_model.update(objects, step=step)
+                    prediction_text = prediction.to_text()
+                    incoming_threats = [t.to_dict() for t in prediction.incoming_threats]
+                except Exception:  # noqa: BLE001
+                    prediction_text = ""
+                    incoming_threats = []
+
             # Human feedback: inject pending human corrections into the world state
             feedback_text = ""
             if self.feedback_injector is not None:
@@ -240,7 +254,11 @@ class GameplayAgent:
                 objectives=[objective],
                 recent_actions=recent[-5:],
                 available_capabilities=sorted(caps.capabilities),
-                observation_summary=compact_summary + (f" Spatial: {spatial_text}" if spatial_text else "") + (f" Audio: {audio_text}" if audio_text else "") + (f" {feedback_text}" if feedback_text else ""),
+                observation_summary=(compact_summary + (f" Spatial: {spatial_text}" if spatial_text else "")
+                                     + (f" Audio: {audio_text}" if audio_text else "")
+                                     + (f" {feedback_text}" if feedback_text else "")
+                                     + (f" {prediction_text}" if prediction_text else "")),
+                incoming_threats=incoming_threats,
             )
 
             # Token optimization: decide whether to send image

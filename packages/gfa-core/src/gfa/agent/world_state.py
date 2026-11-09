@@ -21,6 +21,7 @@ class WorldState:
     uncertainty: list[str] = field(default_factory=list)
     observation_summary: str = ""
     available_capabilities: list[str] = field(default_factory=list)
+    incoming_threats: list[dict[str, Any]] = field(default_factory=list)  # world-model predictions
 
     def to_prompt_text(self) -> str:
         lines = []
@@ -39,4 +40,6 @@ class WorldState:
             lines.append("Uncertainty: " + "; ".join(self.uncertainty))
         if self.observation_summary:
             lines.append("Observation: " + self.observation_summary)
+        if self.incoming_threats:
+            lines.append("Incoming threats (predicted): " + str(self.incoming_threats))
         return "\n".join(lines)
