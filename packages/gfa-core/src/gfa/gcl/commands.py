@@ -103,6 +103,9 @@ class CommandRegistry:
             optional=["params"], field_types={"name": str, "params": dict})
         add(type="combo", category="game_specific", required=["name"],
             optional=["params"], field_types={"name": str, "params": dict})
+        add(type="macro", category="game_specific", required=["name"],
+            optional=["speed", "start_step"], field_types={"name": str, "speed": (int, float), "start_step": int},
+            description="Replay a recorded macro by name.")
 
 
 _DEFAULT_REGISTRY: CommandRegistry | None = None

@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from gfa.gcl.capabilities import CapabilitySet
+from gfa.macros.library import MacroLibrary
+from gfa.macros.player import MacroPlayer
 from gfa.universal.capture import CapturedFrame, capture_window, frame_diff_ratio
 from gfa.universal.input import InputController
 from gfa.universal.sync_input import SyncInputController
@@ -25,6 +28,7 @@ class BaselineConfig:
     capture_interval: float = 1.0
     client_only: bool = True
     keybind_profile: KeybindProfile | None = None
+    data_dir: Path | None = None  # macro library location; None = default GFA data dir
 
 
 class UniversalBaseline:
@@ -35,6 +39,8 @@ class UniversalBaseline:
         self.keybinds = self.config.keybind_profile or fps_wasd()
         self.combos = create_default_library()
         self.spatial = SpatialEstimator()
+        self.macros = MacroLibrary(self.config.data_dir)
+        self.macro_player = MacroPlayer(self._dispatch_macro_command)
         self._hwnd: int | None = self.config.hwnd
         self._last_frame: CapturedFrame | None = None
         self._last_raw: bytes | None = None
@@ -130,6 +136,60 @@ class UniversalBaseline:
         ok = combo.execute(self.sync_input)
         return {"combo": name, "executed": ok}
 
+    def execute_macro(self, name: str, speed: float = 1.0, start_step: int = 0) -> dict[str, Any]:
+        """Play a stored macro through the input controllers."""
+        macro = self.macros.load(name)  # raises MacroLibraryError if missing
+        result = self.macro_player.play(macro, speed=speed, start_step=start_step)
+        return result.to_dict()
+
+    def _dispatch_macro_command(self, cmd: dict[str, Any]) -> dict[str, Any]:
+        """Route one recorded GCL command to the matching baseline helper.
+
+        Accepts both flat ({"type": ..., "direction": ...}) and nested
+        ({"type": ..., "params": {...}}) command shapes.
+        """
+        ctype = cmd.get("type")
+        p = {k: v for k, v in cmd.items() if k != "type"}
+        params = p.get("params")
+        if isinstance(params, dict):
+            merged = {k: v for k, v in p.items() if k != "params"}
+            merged.update(params)
+            p = merged
+        if ctype in ("observe", "observe_region"):
+            frame = self.observe()
+            return {"width": frame.width, "height": frame.height, "captured": True}
+        if ctype == "move":
+            return self.move(p.get("direction", "forward"), p.get("duration_ms", 500))
+        if ctype == "look":
+            return self.look(p.get("dx", 0), p.get("dy", 0))
+        if ctype == "look_and_move":
+            return self.look_and_move(p.get("look_dx", 0), p.get("look_dy", 0), p.get("keys"))
+        if ctype == "hold_keys":
+            return self.hold_keys(p.get("keys", []))
+        if ctype == "release_keys":
+            return self.release_keys(p.get("keys", []))
+        if ctype == "combo":
+            return self.execute_combo(p.get("name", ""))
+        if ctype == "look_around":
+            return self.look_around(p.get("angles"))
+        if ctype == "click":
+            return self.click(p.get("button", "left"), p.get("x"), p.get("y"), p.get("count", 1))
+        if ctype == "scroll":
+            return self.scroll(p.get("amount", 0))
+        if ctype == "key":
+            return self.key(p.get("key", ""), p.get("action", "tap"))
+        if ctype == "type_text":
+            return self.type_text(p.get("text", ""))
+        if ctype == "wait":
+            return self.wait(p.get("duration_ms", 500))
+        if ctype == "verify":
+            frame = self.observe()
+            return {"verified": True, "frame": (frame.width, frame.height)}
+        if ctype == "emergency_stop":
+            self.emergency_stop()
+            return {"stopped": True}
+        raise ValueError(f"unknown macro command type: {ctype!r}")
+
     def spatial_summary(self, objects: list[dict[str, Any]]) -> str:
         return self.spatial.spatial_summary(objects)
 
@@ -192,6 +252,9 @@ class UniversalBaseline:
             return self.release_keys(cmd.params.get("keys", []))
         async def combo_handler(cmd: Command):
             return self.execute_combo(cmd.params.get("name", ""))
+        async def macro_handler(cmd: Command):
+            return self.execute_macro(cmd.params.get("name", ""), speed=float(cmd.params.get("speed", 1.0)),
+                                      start_step=int(cmd.params.get("start_step", 0)))
         async def look_around_handler(cmd: Command):
             return self.look_around(cmd.params.get("angles"))
         async def click_handler(cmd: Command):
@@ -216,6 +279,7 @@ class UniversalBaseline:
         executor.register_handler("hold_keys", hold_keys_handler)
         executor.register_handler("release_keys", release_keys_handler)
         executor.register_handler("combo", combo_handler)
+        executor.register_handler("macro", macro_handler)
         executor.register_handler("look_around", look_around_handler)
         executor.register_handler("click", click_handler)
         executor.register_handler("scroll", scroll_handler)

@@ -568,7 +568,7 @@ def feedback_list(game: str | None = typer.Option(None, "--game"),
             return
         t = Table("ID", "Type", "Game", "Applied", "Text")
         for c in items:
-            t.add_row(c.id, c.type, c.game or "-", ("x%d" % c.applied_count) if c.applied else "pending", c.text)
+            t.add_row(c.id, c.type, c.game or "-", (f"x{c.applied_count}" if c.applied else "pending"), c.text)
         console.print(t)
 
 
@@ -592,6 +592,96 @@ def feedback_delete(correction_id: str, json_output: bool = typer.Option(False, 
         console.print(f"Deleted {correction_id}" if ok else f"Not found: {correction_id}")
     if not ok:
         raise typer.Exit(code=1) from None
+
+
+# ---- macro ----
+macro_app = typer.Typer(help="Macro recording/playback commands")
+app.add_typer(macro_app, name="macro")
+
+
+def get_macro_library():
+    from gfa.macros.library import MacroLibrary
+
+    return MacroLibrary(get_config().data_dir)
+
+
+@macro_app.command("list")
+def macro_list(json_output: bool = typer.Option(False, "--json")):
+    """List stored macros."""
+    lib = get_macro_library()
+    macros = lib.list()
+    rows = [m.to_dict() for m in macros]
+    if json_output:
+        typer.echo(json.dumps(rows, indent=2, default=str))
+    else:
+        if not rows:
+            console.print("No macros stored.")
+            return
+        t = Table("Name", "Game", "Steps", "Commands", "Delay (ms)")
+        for m in macros:
+            t.add_row(m.name, m.game or "-", str(len(m.steps)), str(m.command_count),
+                      f"{m.total_delay_ms:.0f}")
+        console.print(t)
+
+
+@macro_app.command("show")
+def macro_show(name: str, json_output: bool = typer.Option(False, "--json")):
+    """Show a macro's steps."""
+    lib = get_macro_library()
+    try:
+        macro = lib.load(name)
+    except Exception as exc:  # noqa: BLE001
+        err.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(code=1) from None
+    if json_output:
+        typer.echo(json.dumps(macro.to_dict(), indent=2, default=str))
+    else:
+        console.print(macro.to_text())
+
+
+@macro_app.command("delete")
+def macro_delete(name: str, json_output: bool = typer.Option(False, "--json")):
+    """Delete a macro."""
+    ok = get_macro_library().delete(name)
+    if json_output:
+        typer.echo(json.dumps({"deleted": ok}, indent=2, default=str))
+    else:
+        console.print(f"Deleted macro '{name}'" if ok else f"Macro not found: {name}")
+    if not ok:
+        raise typer.Exit(code=1) from None
+
+
+@macro_app.command("export")
+def macro_export(name: str, json_output: bool = typer.Option(False, "--json")):
+    """Export a macro as JSON (stdout)."""
+    try:
+        data = get_macro_library().export_json(name)
+    except Exception as exc:  # noqa: BLE001
+        err.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(code=1) from None
+    if json_output:
+        typer.echo(data)
+    else:
+        console.print(data)
+
+
+@macro_app.command("import")
+def macro_import(path: str, json_output: bool = typer.Option(False, "--json")):
+    """Import a macro from a JSON file (or '-' for stdin)."""
+    data = Path(path).read_text(encoding="utf-8") if path != "-" else typer.echo("")
+    if path == "-":
+        import sys
+
+        data = sys.stdin.read()
+    try:
+        macro = get_macro_library().import_json(data)
+    except Exception as exc:  # noqa: BLE001
+        err.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(code=1) from None
+    if json_output:
+        typer.echo(json.dumps(macro.to_dict(), indent=2, default=str))
+    else:
+        console.print(f"Imported macro '{macro.name}'")
 
 
 # ---- adapter ----

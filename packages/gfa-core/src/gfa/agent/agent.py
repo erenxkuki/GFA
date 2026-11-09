@@ -88,9 +88,36 @@ class GameplayAgent:
         self.audio_monitor = audio_monitor
         self.recorder = recorder
         self.feedback_injector = feedback_injector
+        self._macro_recorder = None
+        self._macro_name: str | None = None
         self._emergency = False
         self.action_history: list[dict[str, Any]] = []
         self.errors: list[str] = []
+
+    def start_macro_recording(self, name: str, game: str | None = None) -> None:
+        """Begin recording executed steps into a named macro (saved on stop)."""
+        from gfa.macros.recorder import MacroRecorder
+
+        self._macro_recorder = MacroRecorder(name=name, game=game or self.game_id, source="agent")
+        self._macro_recorder.start_recording()
+        self._macro_name = name
+
+    def stop_macro_recording(self) -> dict[str, Any] | None:
+        """Finish recording and save the macro to the baseline library."""
+        if getattr(self, "_macro_recorder", None) is None or not self._macro_recorder.recording:
+            return None
+        macro = self._macro_recorder.stop_recording()
+        self._macro_recorder = None
+        try:
+            self.baseline.macros.save(macro)
+        except Exception:  # noqa: BLE001
+            return None
+        return macro.to_dict()
+
+    def _record_macro_step(self, commands: Any) -> None:
+        if getattr(self, "_macro_recorder", None) is not None and self._macro_recorder.recording:
+            with contextlib.suppress(Exception):  # noqa: BLE001
+                self._macro_recorder.record(commands)
 
     def emergency_stop(self) -> None:
         self._emergency = True
@@ -275,6 +302,9 @@ class GameplayAgent:
             if self.feedback_injector is not None:
                 with contextlib.suppress(Exception):  # noqa: BLE001
                     self.feedback_injector.consume_after_action()
+
+            # Macro recording: capture this executed step
+            self._record_macro_step(commands)
 
             self._record_step(step, frame=frame, observation_summary=ws.observation_summary,
                               objects=[{"label": o.label, "x": o.x, "y": o.y, "w": o.w, "h": o.h,
